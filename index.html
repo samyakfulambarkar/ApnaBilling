@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff6600">
+
+
 <title>ApnaBilling — POS System</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -240,7 +245,22 @@
   }
 </style>
 </head>
+
+
 <body>
+
+  <!-- TOPBAR -->
+
+<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111; color:#fff;">
+  
+  <div style="display:flex; align-items:center; gap:10px;">
+    <img src="logo.png" width="35">
+    <h3>ApnaBilling</h3>
+  </div>
+
+  <button id="installBtn" style="display:none;">Install 📲</button>
+
+</div>
 
 <!-- SIDEBAR -->
 <aside id="sidebar">
@@ -2338,6 +2358,26 @@ function init() {
 }
 
 init();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js")
+    .then(() => console.log("PWA Ready 🚀"));
+}
+</script>
+<script>
+let deferredPrompt;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById("installBtn").style.display = "block";
+});
+
+document.getElementById("installBtn").addEventListener("click", async () => {
+  deferredPrompt.prompt();
+  deferredPrompt = null;
+});
 </script>
 </body>
 </html>

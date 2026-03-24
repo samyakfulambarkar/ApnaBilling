@@ -1,0 +1,2343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ApnaBilling — POS System</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #151820;
+    --surface2: #1c2030;
+    --surface3: #242840;
+    --border: #2a2f45;
+    --accent: #f0a500;
+    --accent2: #e05c2a;
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+  /* SIDEBAR */
+  #sidebar {
+    width: 230px; min-width: 230px; background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; transition: width .3s;
+  }
+  .sidebar-logo {
+    padding: 24px 20px 16px; border-bottom: 1px solid var(--border);
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem;
+    color: var(--accent); display: flex; align-items: center; gap: 10px; letter-spacing: -0.5px;
+  }
+  .sidebar-logo span { color: var(--text); }
+  .nav-section { padding: 8px 12px 4px; font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin-top: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 16px; margin: 2px 8px;
+    border-radius: 9px; cursor: pointer; font-size: .9rem; color: var(--muted); transition: all .2s; font-weight: 500;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent); color: #000; font-weight: 700; }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .sidebar-footer { margin-top: auto; padding: 16px; border-top: 1px solid var(--border); font-size: .78rem; color: var(--muted); flex-shrink: 0; }
+  .sidebar-nav { flex: 1; overflow-y: auto; }
+
+  /* MAIN */
+  #main { flex: 1; min-width: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; }
+  .topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; flex-shrink: 0;
+  }
+  .topbar-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.2rem; }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .badge { background: var(--accent); color: #000; border-radius: 20px; padding: 4px 12px; font-size: .8rem; font-weight: 700; font-family: 'DM Mono', monospace; }
+  .page { display: none; padding: 24px 28px; animation: fadeIn .3s; flex: 1; }
+  .page.active { display: block; }
+  #page-pos.active { display: flex; flex-direction: column; padding: 16px 20px; overflow: hidden; height: calc(100vh - 64px); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* CARDS */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; position: relative; overflow: hidden;
+  }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .stat-card.yellow::before { background: var(--accent); }
+  .stat-card.green::before { background: var(--green); }
+  .stat-card.blue::before { background: var(--blue); }
+  .stat-card.red::before { background: var(--red); }
+  .stat-label { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 600; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; }
+  .stat-sub { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+
+  /* CHART */
+  .chart-section { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 16px; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 120px; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar { width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; opacity: .85; transition: opacity .2s; cursor: pointer; }
+  .bar:hover { opacity: 1; }
+  .bar-lbl { font-size: .65rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .donut-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+  canvas#donutChart { max-width: 130px; }
+
+  /* POS */
+  .pos-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; flex: 1; overflow: hidden; min-height: 0; }
+  .pos-left { display: flex; flex-direction: column; gap: 14px; overflow: hidden; min-height: 0; height: 100%; }
+  .pos-right { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden; }
+  .product-grid-wrap { flex: 1; overflow-y: auto; min-height: 0; height: 0; }
+  .search-bar { display: flex; gap: 10px; }
+  .input { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: .9rem; outline: none; transition: border-color .2s; }
+  .input:focus { border-color: var(--accent); }
+  .input::placeholder { color: var(--muted); }
+  .btn { border: none; border-radius: 8px; padding: 10px 18px; font-family: 'DM Sans', sans-serif; font-weight: 600; cursor: pointer; transition: all .2s; font-size: .88rem; }
+  .btn-accent { background: var(--accent); color: #000; }
+  .btn-accent:hover { background: #d99200; }
+  .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface3); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-red:hover { background: #dc2626; }
+  .btn-green { background: var(--green); color: #fff; }
+  .btn-green:hover { background: #16a34a; }
+
+  /* Product grid */
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding-right: 4px; padding-bottom: 8px; }
+  .product-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 12px; cursor: pointer; transition: all .2s; text-align: center;
+  }
+  .product-card:hover { border-color: var(--accent); background: var(--surface2); transform: translateY(-2px); }
+  .product-icon { font-size: 2rem; margin-bottom: 6px; }
+  .product-name { font-size: .82rem; font-weight: 600; margin-bottom: 4px; }
+  .product-price { font-size: .75rem; color: var(--accent); font-family: 'DM Mono', monospace; font-weight: 500; }
+
+  /* Cart */
+  .cart-header { padding: 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .cart-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; }
+  .cart-items { flex: 1; overflow-y: auto; padding: 10px; min-height: 0; height: 0; }
+  .cart-row {
+    display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px;
+    margin-bottom: 4px; background: var(--surface2); font-size: .82rem;
+  }
+  .cart-name { flex: 1; font-weight: 500; }
+  .qty-ctrl { display: flex; align-items: center; gap: 6px; }
+  .qty-btn { width: 24px; height: 24px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface3); color: var(--text); cursor: pointer; font-weight: 700; font-size: .9rem; display: flex; align-items: center; justify-content: center; }
+  .qty-val { font-family: 'DM Mono', monospace; font-size: .82rem; min-width: 22px; text-align: center; }
+  .item-total { font-family: 'DM Mono', monospace; font-size: .8rem; color: var(--accent); min-width: 60px; text-align: right; }
+  .del-item { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1.1rem; padding: 2px 4px; }
+  .cart-footer { padding: 14px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .summary-row { display: flex; justify-content: space-between; font-size: .85rem; margin-bottom: 6px; }
+  .summary-row.total { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; color: var(--accent); margin-top: 8px; }
+  .gst-select { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 6px 10px; font-size: .82rem; margin-bottom: 10px; width: 100%; }
+
+  /* GST Calculator */
+  .gst-calc { max-width: 520px; }
+  .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: .78rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .gst-result { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .gst-result-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .88rem; }
+  .gst-result-row:last-child { border-bottom: none; font-weight: 700; font-size: 1rem; }
+  .highlight { color: var(--accent); font-family: 'DM Mono', monospace; }
+
+  /* Sales History */
+  .hist-table { width: 100%; border-collapse: collapse; }
+  .hist-table th { text-align: left; padding: 10px 14px; font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); font-weight: 600; }
+  .hist-table td { padding: 12px 14px; font-size: .85rem; border-bottom: 1px solid var(--border)20; }
+  .hist-table tr:hover td { background: var(--surface2); }
+  .status-pill { border-radius: 20px; padding: 3px 10px; font-size: .72rem; font-weight: 700; display: inline-block; }
+  .status-pill.paid { background: #22c55e20; color: var(--green); }
+  .status-pill.pending { background: #f0a50020; color: var(--accent); }
+  .bill-num { font-family: 'DM Mono', monospace; font-size: .8rem; color: var(--blue); }
+
+  /* Account */
+  .account-form { max-width: 560px; display: flex; flex-direction: column; gap: 16px; }
+  .upi-qr-section { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .qr-box {
+    width: 180px; height: 180px; background: #fff; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; padding: 10px;
+  }
+  canvas#qrCanvas { width: 160px; height: 160px; }
+  .upi-id-display { font-family: 'DM Mono', monospace; color: var(--accent); font-size: .9rem; font-weight: 500; }
+
+  /* Receipt */
+  #receiptModal {
+    display: none; position: fixed; inset: 0; background: #000a; z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  #receiptModal.open { display: flex; }
+  .receipt-wrap { background: #fff; width: 340px; border-radius: 8px; overflow: hidden; max-height: 90vh; display: flex; flex-direction: column; }
+  .receipt-paper { overflow-y: auto; flex: 1;
+    background: #fff; color: #111; font-family: 'DM Mono', monospace;
+    font-size: 12px; line-height: 1.6; padding: 20px 16px;
+  }
+  .receipt-center { text-align: center; }
+  .receipt-shop { font-size: 1.1rem; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
+  .receipt-divider { border-top: 1px dashed #aaa; margin: 6px 0; }
+  .receipt-row { display: flex; justify-content: space-between; }
+  .receipt-actions { display: flex; gap: 10px; padding: 14px 16px; background: #f5f5f5; border-top: 1px solid #ddd; }
+
+  /* UPI QR Upload */
+  #qrDropZone:hover { border-color: var(--accent); background: var(--surface2); }
+
+  /* Category Pills */
+  .cat-pill {
+    padding: 5px 13px; border-radius: 20px; font-size: .78rem; font-weight: 600;
+    cursor: pointer; border: 1.5px solid var(--border); background: var(--surface2);
+    color: var(--muted); transition: all .18s; white-space: nowrap; font-family: 'DM Sans', sans-serif;
+  }
+  .cat-pill:hover { border-color: var(--accent); color: var(--text); }
+  .cat-pill.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+
+  /* Payment method buttons */
+  .pay-btn {
+    flex: 1; border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface2);
+    color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: .78rem; font-weight: 600;
+    padding: 8px 4px; cursor: pointer; transition: all .18s; text-align: center;
+  }
+  .pay-btn:hover { border-color: var(--accent); color: var(--text); background: var(--surface3); }
+  .pay-btn.active { border-color: var(--accent); background: var(--accent)22; color: var(--accent); }
+  .pay-btn.active.upi { border-color: var(--blue); background: var(--blue)22; color: var(--blue); }
+  .pay-btn.active.unpaid { border-color: var(--red); background: var(--red)22; color: var(--red); }
+  .pay-btn.active.split { border-color: var(--blue); background: var(--blue)22; color: var(--blue); }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    #sidebar { width: 60px; min-width: 60px; }
+    .sidebar-logo span, .nav-item span, .nav-section, .sidebar-footer { display: none; }
+    .nav-item { justify-content: center; padding: 12px; }
+    .pos-grid { grid-template-columns: 1fr; height: auto; overflow: visible; }
+    .pos-left { height: 60vh; overflow: hidden; }
+    .pos-right { height: 80vh; }
+    .chart-section { grid-template-columns: 1fr; }
+    #main { width: calc(100vw - 60px); }
+  }
+  @media (max-width: 600px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .page { padding: 16px; }
+    .topbar { padding: 12px 16px; }
+    .calc-grid { grid-template-columns: 1fr; }
+    .prod-form-grid { grid-template-columns: 1fr !important; }
+    .upi-grid { grid-template-columns: 1fr !important; }
+  }
+  @media print {
+    body > * { display: none !important; }
+    #receiptModal { display: flex !important; position: static; background: none; }
+    .receipt-actions { display: none !important; }
+    .receipt-wrap { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside id="sidebar">
+  <div class="sidebar-logo">⚡<span>ApnaBilling</span></div>
+  <div class="sidebar-nav">
+  <div class="nav-section">Main</div>
+  <div class="nav-item active" onclick="navigate('dashboard', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    <span>Dashboard</span>
+  </div>
+  <div class="nav-item" onclick="navigate('pos', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+    <span>POS Billing</span>
+  </div>
+  <div class="nav-item" onclick="navigate('gst', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83M16.62 12l-5.74 9.94"/></svg>
+    <span>GST Calculator</span>
+  </div>
+  <div class="nav-section">Records</div>
+  <div class="nav-item" onclick="navigate('history', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
+    <span>Sales History</span>
+  </div>
+  <div class="nav-item" onclick="navigate('reports', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    <span>Reports</span>
+  </div>
+  <div class="nav-item" onclick="navigate('stock', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    <span>Stock</span>
+  </div>
+  <div class="nav-section">Settings</div>
+  <div class="nav-item" onclick="navigate('products', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+    <span>Products</span>
+  </div>
+  <div class="nav-item" onclick="navigate('account', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span>Account</span>
+  </div>
+  <div class="nav-item" onclick="navigate('upi', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><path d="M21 16h-3v5"/><path d="M21 19v2"/><path d="M12 3v5l4 4"/><path d="M12 12h-3"/><path d="M12 17v4"/></svg>
+    <span>UPI / QR</span>
+  </div>
+  </div>
+  <div class="sidebar-footer">v3.0 Apnabilling </div>
+</aside>
+
+<!-- MAIN -->
+<main id="main">
+  <div class="topbar">
+    <div class="topbar-title" id="pageTitle">Dashboard</div>
+    <div class="topbar-right">
+      <span id="dateDisplay" style="font-size:.82rem;color:var(--muted);font-family:'DM Mono',monospace;"></span>
+      <select id="langSelect" onchange="setLang(this.value)" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:5px 10px;font-size:.78rem;cursor:pointer;">
+        <option value="en">🌐 English</option>
+        <option value="ta">🇮🇳 தமிழ்</option>
+        <option value="hi">🇮🇳 हिन्दी</option>
+        <option value="te">🇮🇳 తెలుగు</option>
+        <option value="ml">🇮🇳 മലയാളം</option>
+        <option value="kn">🇮🇳 ಕನ್ನಡ</option>
+        <option value="mr">🇮🇳 मराठी</option>
+      </select>
+      <span class="badge" id="billBadge">Bill #001</span>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="stat-grid">
+      <div class="stat-card yellow">
+        <div class="stat-label">Today's Sales</div>
+        <div class="stat-value" id="todaySales">₹0</div>
+        <div class="stat-sub" id="todayCount">0 bills today</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Total Revenue</div>
+        <div class="stat-value" id="totalRevenue">₹0</div>
+        <div class="stat-sub" id="totalBills">0 total bills</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Avg Bill Value</div>
+        <div class="stat-value" id="avgBill">₹0</div>
+        <div class="stat-sub">per transaction</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">Total GST</div>
+        <div class="stat-value" id="totalGST">₹0</div>
+        <div class="stat-sub">collected</div>
+      </div>
+    </div>
+    <div class="chart-section">
+      <div class="card">
+        <div class="card-title">Sales — Last 7 Days</div>
+        <div class="bar-chart" id="barChart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Bill Status</div>
+        <div class="donut-wrap">
+          <canvas id="donutChart" width="130" height="130"></canvas>
+          <div style="font-size:.8rem;color:var(--muted);text-align:center;" id="donutLegend">No bills yet</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recent Bills</div>
+      <table class="hist-table" id="recentTable">
+        <thead><tr><th>Bill#</th><th>Customer</th><th>Items</th><th>Total</th><th>GST</th><th>Status</th></tr></thead>
+        <tbody id="recentBody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">No bills yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- POS -->
+  <div id="page-pos" class="page">
+    <div class="pos-grid">
+      <div class="pos-left">
+        <div class="search-bar">
+          <input class="input" style="flex:1" type="text" id="productSearch" placeholder="Search products..." oninput="filterProducts()">
+          <button class="btn btn-ghost" onclick="showAddProductModal()">+ Add Product</button>
+        </div>
+        <!-- CATEGORY FILTER PILLS -->
+        <div id="posCatPills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        <div class="product-grid-wrap">
+          <div class="product-grid" id="productGrid"></div>
+        </div>
+      </div>
+      <div class="pos-right">
+        <div class="cart-header">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div class="cart-title">🛒 Cart</div>
+            <div style="font-family:'DM Mono',monospace;font-size:.8rem;color:var(--blue)" id="cartBillNum">Bill #001</div>
+          </div>
+          <input class="input" style="width:100%;margin-top:10px;font-size:.82rem" type="text" id="customerName" placeholder="Customer name (optional)">
+          <!-- QUICK ADD -->
+          <div style="margin-top:10px;background:var(--surface3);border:1px dashed var(--accent);border-radius:9px;padding:10px 10px 8px;">
+            <div style="font-size:.68rem;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;">⚡ Quick Add — no search needed</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input class="input" id="quickName" type="text" placeholder="Item name" style="flex:2;font-size:.82rem;padding:8px 10px;"
+                onkeydown="if(event.key==='Enter'){document.getElementById('quickPrice').focus()}">
+              <input class="input" id="quickPrice" type="number" placeholder="₹ Price" style="flex:1;font-size:.82rem;padding:8px 10px;min-width:70px;"
+                onkeydown="if(event.key==='Enter'){quickAddItem()}">
+              <input class="input" id="quickQty" type="number" placeholder="Qty" value="1" min="1" style="width:52px;font-size:.82rem;padding:8px 8px;"
+                onkeydown="if(event.key==='Enter'){quickAddItem()}">
+              <button class="btn btn-accent" style="padding:8px 12px;font-size:1.1rem;line-height:1;" onclick="quickAddItem()" title="Add (Enter)">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="cart-items" id="cartItems"><div style="text-align:center;color:var(--muted);padding:30px;font-size:.85rem;">Tap products to add</div></div>
+        <div class="cart-footer">
+          <select class="gst-select" id="gstRate" onchange="updateCartTotal()">
+            <option value="0">No GST (0%)</option>
+            <option value="5">GST 5%</option>
+            <option value="12">GST 12%</option>
+            <option value="18" selected>GST 18%</option>
+            <option value="28">GST 28%</option>
+          </select>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+            <span style="font-size:.78rem;color:var(--muted);white-space:nowrap;">Discount</span>
+            <input class="input" id="discountVal" type="number" min="0" placeholder="0" style="flex:1;font-size:.82rem;padding:6px 8px;" oninput="updateCartTotal()">
+            <select class="input" id="discountType" style="font-size:.78rem;padding:6px 8px;" onchange="updateCartTotal()">
+              <option value="flat">₹ Flat</option>
+              <option value="pct">% Off</option>
+            </select>
+          </div>
+          <div class="summary-row"><span>Subtotal</span><span id="subtotal" style="font-family:'DM Mono',monospace">₹0.00</span></div>
+          <div class="summary-row" id="discountRow" style="display:none;"><span>Discount</span><span id="discountAmt" style="font-family:'DM Mono',monospace;color:var(--green)">-₹0.00</span></div>
+          <div class="summary-row"><span>CGST + SGST</span><span id="gstAmt" style="font-family:'DM Mono',monospace;color:var(--muted)">₹0.00</span></div>
+          <div class="summary-row total"><span>TOTAL</span><span id="grandTotal">₹0.00</span></div>
+
+          <!-- PAYMENT METHOD -->
+          <div style="margin-top:12px;">
+            <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:7px;" data-i18n="payment_method">Payment Method</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="pay-btn active" id="pay-cash" onclick="selectPayment('cash')">💵 <span data-i18n="pay_cash">Cash</span></button>
+              <button class="pay-btn" id="pay-upi" onclick="selectPayment('upi')">📱 UPI</button>
+              <button class="pay-btn" id="pay-split" onclick="selectPayment('split')">⚡ <span data-i18n="pay_split">Split</span></button>
+              <button class="pay-btn" id="pay-unpaid" onclick="selectPayment('unpaid')">⏳ <span data-i18n="pay_unpaid">Unpaid</span></button>
+            </div>
+          </div>
+
+          <!-- SPLIT PAYMENT PANEL -->
+          <div id="splitPanel" style="display:none;margin-top:10px;background:var(--surface3);border:1px solid var(--blue);border-radius:9px;padding:10px;">
+            <div style="font-size:.7rem;color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">⚡ Split Payment</div>
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+              <span style="font-size:.78rem;color:var(--muted);width:56px;">💵 Cash</span>
+              <input class="input" id="splitCash" type="number" min="0" placeholder="0.00" style="flex:1;font-size:.82rem;padding:6px 8px;" oninput="onSplitInput('cash')">
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+              <span style="font-size:.78rem;color:var(--muted);width:56px;">📱 UPI</span>
+              <input class="input" id="splitUpi" type="number" min="0" placeholder="0.00" style="flex:1;font-size:.82rem;padding:6px 8px;" oninput="onSplitInput('upi')">
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.78rem;padding-top:6px;border-top:1px solid var(--border);">
+              <span style="color:var(--muted);">Balance</span>
+              <span id="splitBalance" style="font-family:'DM Mono',monospace;font-weight:700;color:var(--accent);">₹0.00</span>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button class="btn btn-ghost" style="flex:1" onclick="clearCart()" data-i18n="clear">Clear</button>
+            <button class="btn btn-accent" style="flex:2" id="checkoutBtn" onclick="checkoutBill()" data-i18n="checkout">✓ Cash — Checkout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GST Calculator -->
+  <div id="page-gst" class="page">
+    <div class="gst-calc">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">GST Calculator</div>
+        <div class="calc-grid">
+          <div class="form-group">
+            <label class="form-label">Amount (₹)</label>
+            <input class="input" type="number" id="gstAmount" placeholder="Enter amount" oninput="calcGST()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">GST Rate</label>
+            <select class="input" id="gstRateCalc" onchange="calcGST()">
+              <option value="5">5%</option>
+              <option value="12">12%</option>
+              <option value="18" selected>18%</option>
+              <option value="28">28%</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Calculation Type</label>
+            <select class="input" id="gstType" onchange="calcGST()">
+              <option value="exclusive">Exclusive (Add GST)</option>
+              <option value="inclusive">Inclusive (Extract GST)</option>
+            </select>
+          </div>
+          <div class="form-group" style="align-self:end;">
+            <button class="btn btn-accent" style="width:100%" onclick="calcGST()">Calculate</button>
+          </div>
+        </div>
+      </div>
+      <div class="gst-result card">
+        <div class="card-title">Result</div>
+        <div class="gst-result-row"><span>Base Amount</span><span class="highlight" id="gstBase">—</span></div>
+        <div class="gst-result-row"><span>CGST (<span id="cgstRate">9</span>%)</span><span class="highlight" id="cgstAmt">—</span></div>
+        <div class="gst-result-row"><span>SGST (<span id="sgstRate">9</span>%)</span><span class="highlight" id="sgstAmt">—</span></div>
+        <div class="gst-result-row"><span>Total GST</span><span class="highlight" id="totalGstAmt">—</span></div>
+        <div class="gst-result-row"><span>Grand Total</span><span class="highlight" id="gstGrand">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="page-history" class="page">
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <input class="input" type="text" id="histSearch" placeholder="Search bills..." style="flex:1;min-width:160px" oninput="renderHistory()">
+      <input class="input" type="date" id="histFrom" style="font-size:.82rem;" onchange="renderHistory()">
+      <span style="color:var(--muted);font-size:.82rem;">to</span>
+      <input class="input" type="date" id="histTo" style="font-size:.82rem;" onchange="renderHistory()">
+      <button class="btn btn-ghost" onclick="exportCSV()">⬇ CSV</button>
+      <button class="btn btn-ghost" onclick="exportPDF()">📄 PDF</button>
+      <button class="btn btn-red" onclick="clearAllHistory()">🗑 Clear</button>
+    </div>
+    <!-- Summary strip -->
+    <div id="histSummaryStrip" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;gap:24px;flex-wrap:wrap;">
+      <div><span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Bills</span><div style="font-family:'Syne',sans-serif;font-weight:700;" id="stripCount">0</div></div>
+      <div><span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Revenue</span><div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);" id="stripRev">₹0</div></div>
+      <div><span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">GST Collected</span><div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--green);" id="stripGST">₹0</div></div>
+      <div><span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Discount Given</span><div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--blue);" id="stripDisc">₹0</div></div>
+    </div>
+    <div class="card" style="overflow-x:auto;">
+      <table class="hist-table">
+        <thead><tr><th>Bill#</th><th>Date</th><th>Customer</th><th>Items</th><th>Subtotal</th><th>Disc</th><th>GST</th><th>Total</th><th>Pay</th><th>Action</th></tr></thead>
+        <tbody id="historyBody"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px;">No history</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ACCOUNT -->
+  <div id="page-account" class="page">
+    <div class="card account-form">
+      <div class="card-title">🏪 Shop Details</div>
+      <div class="form-group">
+        <label class="form-label">Shop Name</label>
+        <input class="input" id="shopName" type="text" placeholder="e.g. Sri Ganesh Stores" oninput="saveAccount()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <input class="input" id="shopAddress" type="text" placeholder="e.g. 12 Main Road, Chennai" oninput="saveAccount()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input class="input" id="shopPhone" type="text" placeholder="9876543210" oninput="saveAccount()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">GSTIN</label>
+        <input class="input" id="shopGSTIN" type="text" placeholder="22AAAAA0000A1Z5" oninput="saveAccount()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">UPI ID</label>
+        <input class="input" id="shopUPI" type="text" placeholder="shopname@upi" oninput="saveAccount()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Receipt Footer</label>
+        <input class="input" id="shopFooter" type="text" placeholder="Thank you for shopping with us!" oninput="saveAccount()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bill Prefix (e.g. INV, GS, BILL)</label>
+        <input class="input" id="shopPrefix" type="text" placeholder="e.g. INV" maxlength="6" oninput="saveAccount()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Thermal Paper Width</label>
+        <select class="input" id="shopThermal" onchange="saveAccount()">
+          <option value="80">80mm (Standard)</option>
+          <option value="58">58mm (Small)</option>
+        </select>
+      </div>
+      <button class="btn btn-accent" onclick="saveAccount(); alert('Saved!')">💾 Save Details</button>
+    </div>
+  </div>
+
+  <!-- PRODUCTS -->
+  <div id="page-products" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;">Product Catalogue</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-top:2px;" id="prodCount">0 products</div>
+      </div>
+      <button class="btn btn-accent" onclick="openAddProdPage()">+ Add New Product</button>
+    </div>
+
+    <!-- Add / Edit inline form -->
+    <div id="prodForm" style="display:none;background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);padding:20px;margin-bottom:20px;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin-bottom:14px;" id="prodFormTitle">Add New Product</div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px;margin-bottom:14px;" class="prod-form-grid">
+        <div class="form-group">
+          <label class="form-label">Product Name</label>
+          <input class="input" id="pf-name" type="text" placeholder="e.g. Rice 1kg">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Price (₹)</label>
+          <input class="input" id="pf-price" type="number" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="input" id="pf-category">
+            <option value="General">🛒 General</option>
+            <option value="Grocery">🍚 Grocery</option>
+            <option value="Beverage">🥤 Beverage</option>
+            <option value="Medicine">💊 Medicine</option>
+            <option value="Clothing">👕 Clothing</option>
+            <option value="Electronics">⚡ Electronics</option>
+            <option value="Food">🍕 Food</option>
+            <option value="Package">📦 Package</option>
+            <option value="Organic">🌿 Organic</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Icon</label>
+          <select class="input" id="pf-icon">
+            <option value="🛒">🛒 Cart</option>
+            <option value="🍚">🍚 Rice</option>
+            <option value="🥤">🥤 Drink</option>
+            <option value="💊">💊 Medicine</option>
+            <option value="👕">👕 Clothing</option>
+            <option value="⚡">⚡ Electronics</option>
+            <option value="🍕">🍕 Food</option>
+            <option value="📦">📦 Package</option>
+            <option value="🌿">🌿 Organic</option>
+            <option value="🧴">🧴 Care</option>
+            <option value="🍬">🍬 Snacks</option>
+            <option value="☕">☕ Coffee</option>
+            <option value="🥛">🥛 Dairy</option>
+            <option value="🧼">🧼 Soap</option>
+            <option value="🖊️">🖊️ Pen</option>
+            <option value="🍞">🍞 Bread</option>
+            <option value="🥚">🥚 Egg</option>
+            <option value="🫙">🫙 Oil</option>
+          </select>
+        </div>
+      </div>
+      <input type="hidden" id="pf-editId">
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-accent" onclick="saveProdForm()">💾 Save Product</button>
+        <button class="btn btn-ghost" onclick="closeProdForm()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Search + Category Filter -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+      <input class="input" style="flex:1;min-width:200px;" type="text" id="prodSearch" placeholder="🔍 Search products..." oninput="renderProductsPage()">
+      <select class="input" id="prodCatFilter" style="min-width:160px;" onchange="renderProductsPage()">
+        <option value="">All Categories</option>
+      </select>
+    </div>
+
+    <!-- Product Table -->
+    <div class="card" style="overflow-x:auto;">
+      <table class="hist-table" id="prodTable">
+        <thead>
+          <tr>
+            <th style="width:40px;">#</th>
+            <th>Icon</th>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th style="width:160px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="prodTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- REPORTS -->
+  <div id="page-reports" class="page">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap;">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;flex:1;">Sales Reports</div>
+      <input class="input" type="date" id="repFrom" style="font-size:.82rem;">
+      <span style="color:var(--muted);">to</span>
+      <input class="input" type="date" id="repTo" style="font-size:.82rem;">
+      <button class="btn btn-accent" onclick="runReport()">Run Report</button>
+      <button class="btn btn-ghost" onclick="exportReportPDF()">📄 Export PDF</button>
+    </div>
+    <div class="stat-grid" id="repStats" style="margin-bottom:20px;"></div>
+    <div class="card" style="overflow-x:auto;">
+      <div class="card-title">Bills in Range</div>
+      <table class="hist-table"><thead><tr><th>Bill#</th><th>Date</th><th>Customer</th><th>Items</th><th>Subtotal</th><th>Disc</th><th>GST</th><th>Total</th><th>Pay</th></tr></thead>
+        <tbody id="repBody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px;">Set date range and click Run Report</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- STOCK -->
+  <div id="page-stock" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;">Stock Management</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-top:2px;" id="stockStatus">Set stock levels for your products</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label class="form-label" style="white-space:nowrap;">Low Stock Alert ≤</label>
+        <input class="input" type="number" id="lowStockThreshold" value="5" min="1" style="width:70px;font-size:.82rem;" oninput="renderStock()">
+      </div>
+    </div>
+    <div id="lowStockAlert" style="display:none;background:#ef444420;border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:.85rem;color:var(--red);"></div>
+    <div class="card" style="overflow-x:auto;">
+      <table class="hist-table">
+        <thead><tr><th>Icon</th><th>Product</th><th>Category</th><th>Price</th><th>In Stock</th><th>Sold</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="stockBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- UPI QR -->
+  <div id="page-upi" class="page">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:760px;" class="upi-grid">
+
+      <!-- Settings section -->
+      <div class="card">
+        <div class="card-title">📱 UPI Payment Setup</div>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px;">
+          Enter your UPI ID. A QR code will be generated automatically for each bill — when the customer scans it, the <strong style="color:var(--accent)">exact bill amount is pre-filled</strong> in their UPI app.
+        </p>
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label">Your UPI ID</label>
+          <input class="input" id="upiIdInput" type="text" placeholder="e.g. shopname@upi or 9876543210@paytm" oninput="liveUpiPreview()">
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label">Payee Name (shown in UPI app)</label>
+          <input class="input" id="upiPayeeName" type="text" placeholder="e.g. Sri Ganesh Stores" oninput="liveUpiPreview()">
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label">Preview Amount (₹) — for testing</label>
+          <input class="input" id="upiPreviewAmt" type="number" value="100" min="1" oninput="liveUpiPreview()">
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-accent" style="flex:1" onclick="saveUpiSettings()">💾 Save UPI Settings</button>
+        </div>
+        <div id="qrUploadStatus" style="font-size:.82rem;margin-top:10px;"></div>
+
+        <div style="margin-top:18px;padding:12px;background:var(--surface3);border-radius:8px;border-left:3px solid var(--accent);">
+          <div style="font-size:.78rem;color:var(--accent);font-weight:700;margin-bottom:4px;">✦ How it works</div>
+          <div style="font-size:.75rem;color:var(--muted);line-height:1.6;">
+            Each receipt gets a unique QR encoding your UPI ID + exact bill total. Customer scans → their GPay / PhonePe / Paytm opens with the amount already filled. No manual entry needed.
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Preview -->
+      <div class="card">
+        <div class="card-title">👁 Live QR Preview</div>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px;">This QR encodes your UPI ID + the preview amount. On each bill, a fresh QR is generated with that bill's exact total.</p>
+        <div style="background:#fff;border-radius:10px;padding:20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div id="upiPreviewQR" style="width:160px;height:160px;"></div>
+          <div style="font-family:monospace;font-size:13px;color:#111;font-weight:700;" id="upiPreviewAmtLabel">₹100.00</div>
+          <div style="font-family:monospace;font-size:10px;color:#888;" id="upiPreviewIdLabel">Set your UPI ID</div>
+          <div style="font-family:monospace;font-size:9px;color:#aaa;">Scan to Pay · GPay · PhonePe · Paytm</div>
+        </div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:12px;" onclick="printQRPage()">🖨 Print QR Standee</button>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<!-- Receipt Modal -->
+<div id="receiptModal">
+  <div class="receipt-wrap">
+    <div class="receipt-paper" id="receiptContent"></div>
+    <div class="receipt-actions">
+      <button class="btn btn-accent" style="flex:1" onclick="printReceipt()">🖨 Print</button>
+      <button class="btn btn-ghost" style="flex:1" onclick="closeReceipt()">Close</button>
+    </div>
+  </div>
+</div>
+<!-- Hidden QR render target (off-screen) -->
+<div id="qrRenderHidden" style="position:absolute;left:-9999px;top:-9999px;"></div>
+
+<!-- Refund Modal -->
+<div id="refundModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--red);border-radius:14px;width:420px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--red);">↩ Return / Refund</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-top:2px;" id="refundBillLabel">Bill #000</div>
+      </div>
+      <button onclick="closeRefund()" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:4px;">✕</button>
+    </div>
+    <div style="padding:16px 20px;overflow-y:auto;flex:1;">
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;">Select items to return</div>
+      <div id="refundItems"></div>
+      <div style="margin-top:14px;background:var(--surface2);border-radius:8px;padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:6px;">
+          <span style="color:var(--muted);">Return Amount</span>
+          <span id="refundAmt" style="font-family:'DM Mono',monospace;color:var(--red);font-weight:700;">₹0.00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px;">
+          <span style="color:var(--muted);">GST Refund</span>
+          <span id="refundGst" style="font-family:'DM Mono',monospace;color:var(--muted);">₹0.00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.78rem;">
+          <span style="color:var(--muted);">Total Refund</span>
+          <span id="refundTotal" style="font-family:'DM Mono',monospace;color:var(--red);font-weight:700;font-size:1rem;">₹0.00</span>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <label style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block;margin-bottom:6px;">Reason for Return</label>
+        <select class="input" id="refundReason" style="width:100%;font-size:.85rem;">
+          <option value="Defective product">Defective product</option>
+          <option value="Wrong item delivered">Wrong item delivered</option>
+          <option value="Customer changed mind">Customer changed mind</option>
+          <option value="Excess quantity billed">Excess quantity billed</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeRefund()">Cancel</button>
+      <button class="btn btn-red" style="flex:2;" onclick="processRefund()">↩ Process Refund</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Product Modal -->
+<div id="addProductModal" style="display:none;position:fixed;inset:0;background:#000a;z-index:100;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:340px;">
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;margin-bottom:16px;">Add Product</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="form-group"><label class="form-label">Product Name</label><input class="input" id="newProdName" type="text" placeholder="e.g. Rice 1kg"></div>
+      <div class="form-group"><label class="form-label">Price (₹)</label><input class="input" id="newProdPrice" type="number" placeholder="0.00"></div>
+      <div class="form-group"><label class="form-label">Category / Icon</label>
+        <select class="input" id="newProdIcon">
+          <option value="🛒">🛒 General</option><option value="🍚">🍚 Grocery</option><option value="🥤">🥤 Beverage</option>
+          <option value="💊">💊 Medicine</option><option value="👕">👕 Clothing</option><option value="⚡">⚡ Electronics</option>
+          <option value="🍕">🍕 Food</option><option value="📦">📦 Package</option><option value="🌿">🌿 Organic</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px;">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeAddProduct()">Cancel</button>
+        <button class="btn btn-accent" style="flex:1" onclick="addProduct()">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let state = {
+  products: JSON.parse(localStorage.getItem('bm_products') || 'null') || [
+    { id: 1, name: 'Rice 1kg', price: 55, icon: '🍚', category: 'Grocery' },
+    { id: 2, name: 'Toor Dal 500g', price: 72, icon: '🌿', category: 'Grocery' },
+    { id: 3, name: 'Sunflower Oil 1L', price: 140, icon: '🫙', category: 'Grocery' },
+    { id: 4, name: 'Sugar 1kg', price: 44, icon: '🍬', category: 'Grocery' },
+    { id: 5, name: 'Tea Powder', price: 95, icon: '☕', category: 'Beverage' },
+    { id: 6, name: 'Milk 500ml', price: 28, icon: '🥛', category: 'Food' },
+    { id: 7, name: 'Bread', price: 35, icon: '🍞', category: 'Food' },
+    { id: 8, name: 'Eggs (6)', price: 54, icon: '🥚', category: 'Food' },
+    { id: 9, name: 'Biscuits', price: 20, icon: '🍪', category: 'Food' },
+    { id: 10, name: 'Shampoo', price: 120, icon: '🧴', category: 'General' },
+    { id: 11, name: 'Soap', price: 40, icon: '🧼', category: 'General' },
+    { id: 12, name: 'Pen', price: 10, icon: '🖊️', category: 'General' },
+  ],
+  cart: [],
+  sales: JSON.parse(localStorage.getItem('bm_sales') || '[]'),
+  billCounter: parseInt(localStorage.getItem('bm_bill') || '1'),
+  account: JSON.parse(localStorage.getItem('bm_account') || '{}'),
+};
+
+function save() {
+  localStorage.setItem('bm_sales', JSON.stringify(state.sales));
+  localStorage.setItem('bm_bill', state.billCounter);
+  localStorage.setItem('bm_account', JSON.stringify(state.account));
+  localStorage.setItem('bm_products', JSON.stringify(state.products));
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+function navigate(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (el) el.classList.add('active');
+  const titles = { dashboard:'Dashboard', pos:'POS Billing', gst:'GST Calculator', history:'Sales History', reports:'Reports', stock:'Stock', account:'Account', upi:'UPI / QR', products:'Products' };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'pos') { buildPosCatPills(); renderProducts(); }
+  if (page === 'history') renderHistory();
+  if (page === 'account') loadAccount();
+  if (page === 'upi') loadUpiPage();
+  if (page === 'products') renderProductsPage();
+  if (page === 'reports') initReportDates();
+  if (page === 'stock') renderStock();
+  applyLang();
+}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+function renderDashboard() {
+  const today = new Date().toDateString();
+  const billsOnly = state.sales.filter(s => s.type !== 'refund');
+  const todayBills = state.sales.filter(s => new Date(s.date).toDateString() === today);
+  const todaySales = todayBills.reduce((a, b) => a + b.total, 0);
+  const totalRev = state.sales.reduce((a, b) => a + b.total, 0);
+  const totalGST = state.sales.reduce((a, b) => a + b.gst, 0);
+  const avg = billsOnly.length ? billsOnly.reduce((a,b)=>a+b.total,0) / billsOnly.length : 0;
+
+  document.getElementById('todaySales').textContent = '₹' + todaySales.toFixed(0);
+  document.getElementById('todayCount').textContent = todayBills.length + ' bills today';
+  document.getElementById('totalRevenue').textContent = '₹' + totalRev.toFixed(0);
+  document.getElementById('totalBills').textContent = state.sales.length + ' total bills';
+  document.getElementById('avgBill').textContent = '₹' + avg.toFixed(0);
+  document.getElementById('totalGST').textContent = '₹' + totalGST.toFixed(0);
+
+  // Bar chart - last 7 days
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = d.toDateString();
+    const s = state.sales.filter(x => new Date(x.date).toDateString() === ds).reduce((a, b) => a + b.total, 0);
+    days.push({ label: d.toLocaleDateString('en-IN', { weekday: 'short' }), val: s });
+  }
+  const max = Math.max(...days.map(d => d.val), 1);
+  const bc = document.getElementById('barChart');
+  bc.innerHTML = days.map(d => `
+    <div class="bar-wrap">
+      <div class="bar" style="height:${Math.max((d.val/max)*100, 4)}%" title="₹${d.val}"></div>
+      <div class="bar-lbl">${d.label}</div>
+    </div>
+  `).join('');
+
+  // Recent bills
+  const rb = document.getElementById('recentBody');
+  if (!state.sales.length) { rb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px;">No bills yet</td></tr>'; return; }
+  rb.innerHTML = state.sales.slice(-8).reverse().map(s => `
+    <tr>
+      <td><span class="bill-num">#${String(s.id).padStart(3,'0')}</span></td>
+      <td>${s.customer || '—'}</td>
+      <td>${s.items.length}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--accent)">₹${s.total.toFixed(2)}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--muted)">₹${s.gst.toFixed(2)}</td>
+      <td><span class="status-pill paid">Paid</span></td>
+    </tr>
+  `).join('');
+
+  // Donut
+  drawDonut();
+}
+
+function drawDonut() {
+  const canvas = document.getElementById('donutChart');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 130, 130);
+  const total = state.sales.reduce((a, b) => a + b.total, 0);
+  const gstTotal = state.sales.reduce((a, b) => a + b.gst, 0);
+  const base = total - gstTotal;
+  if (!total) {
+    document.getElementById('donutLegend').textContent = 'No bills yet';
+    ctx.strokeStyle = '#2a2f45'; ctx.lineWidth = 18;
+    ctx.beginPath(); ctx.arc(65, 65, 50, 0, Math.PI * 2); ctx.stroke();
+    return;
+  }
+  const slices = [{ val: base, color: '#f0a500' }, { val: gstTotal, color: '#22c55e' }];
+  let start = -Math.PI / 2;
+  slices.forEach(sl => {
+    const angle = (sl.val / total) * Math.PI * 2;
+    ctx.beginPath(); ctx.arc(65, 65, 50, start, start + angle);
+    ctx.strokeStyle = sl.color; ctx.lineWidth = 18;
+    ctx.stroke(); start += angle;
+  });
+  document.getElementById('donutLegend').innerHTML =
+    `<span style="color:var(--accent)">● Base ₹${base.toFixed(0)}</span><br><span style="color:var(--green)">● GST ₹${gstTotal.toFixed(0)}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// POS
+// ═══════════════════════════════════════════════════════
+const CATEGORIES = [
+  { name: 'General', icon: '🛒' },
+  { name: 'Grocery', icon: '🍚' },
+  { name: 'Beverage', icon: '🥤' },
+  { name: 'Medicine', icon: '💊' },
+  { name: 'Clothing', icon: '👕' },
+  { name: 'Electronics', icon: '⚡' },
+  { name: 'Food', icon: '🍕' },
+  { name: 'Package', icon: '📦' },
+  { name: 'Organic', icon: '🌿' },
+];
+
+let activePosCategory = 'All';
+
+function buildPosCatPills() {
+  const usedCats = new Set(state.products.map(p => p.category || 'General'));
+  const pills = [{ name: 'All', icon: '✦' }, ...CATEGORIES.filter(c => usedCats.has(c.name))];
+  const container = document.getElementById('posCatPills');
+  if (!container) return;
+  container.innerHTML = pills.map(c => `
+    <button class="cat-pill ${c.name === activePosCategory ? 'active' : ''}" onclick="setPosCat('${c.name}')">${c.icon} ${c.name}</button>
+  `).join('');
+}
+
+function setPosCat(cat) {
+  activePosCategory = cat;
+  buildPosCatPills();
+  renderProducts(document.getElementById('productSearch')?.value || '');
+}
+
+function renderProducts(filter = '') {
+  const grid = document.getElementById('productGrid');
+  if (!grid) return;
+  let items = state.products;
+  if (activePosCategory !== 'All') items = items.filter(p => (p.category || 'General') === activePosCategory);
+  if (filter) items = items.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+  grid.innerHTML = items.map(p => {
+    const stockBadge = p.stock === 0
+      ? `<div style="font-size:.65rem;color:var(--red);font-weight:700;margin-top:2px;">Out of stock</div>`
+      : p.stock != null && p.stock <= 5
+        ? `<div style="font-size:.65rem;color:var(--accent);font-weight:700;margin-top:2px;">${p.stock} left</div>`
+        : '';
+    const dimmed = p.stock === 0 ? 'opacity:.45;pointer-events:none;' : '';
+    return `<div class="product-card" onclick="addToCart(${p.id})" style="${dimmed}">
+      <div class="product-icon">${p.icon}</div>
+      <div class="product-name">${p.name}</div>
+      <div class="product-price">₹${p.price.toFixed(2)}</div>
+      ${stockBadge}
+    </div>`;
+  }).join('') || '<div style="color:var(--muted);font-size:.85rem;padding:20px;text-align:center;grid-column:1/-1;">No products in this category</div>';
+}
+
+function filterProducts() {
+  renderProducts(document.getElementById('productSearch').value);
+}
+
+function addToCart(id) {
+  const prod = state.products.find(p => p.id === id);
+  const existing = state.cart.find(c => c.id === id);
+  if (existing) existing.qty++;
+  else state.cart.push({ ...prod, qty: 1 });
+  renderCart();
+}
+
+function renderCart() {
+  const ci = document.getElementById('cartItems');
+  if (!state.cart.length) {
+    ci.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;font-size:.85rem;">Tap products to add</div>';
+    updateCartTotal(); return;
+  }
+  ci.innerHTML = state.cart.map((item, i) => `
+    <div class="cart-row">
+      <div class="cart-name">${item.icon} ${item.name}</div>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="changeQty(${i},-1)">−</button>
+        <div class="qty-val">${item.qty}</div>
+        <button class="qty-btn" onclick="changeQty(${i},1)">+</button>
+      </div>
+      <div class="item-total">₹${(item.price * item.qty).toFixed(2)}</div>
+      <button class="del-item" onclick="removeItem(${i})">✕</button>
+    </div>
+  `).join('');
+  updateCartTotal();
+}
+
+function changeQty(i, delta) {
+  state.cart[i].qty += delta;
+  if (state.cart[i].qty <= 0) state.cart.splice(i, 1);
+  renderCart();
+}
+
+function removeItem(i) { state.cart.splice(i, 1); renderCart(); }
+function clearCart() { state.cart = []; renderCart(); document.getElementById('customerName').value = ''; }
+
+function updateCartTotal() {
+  const sub = state.cart.reduce((a, b) => a + b.price * b.qty, 0);
+  const discVal = parseFloat(document.getElementById('discountVal')?.value) || 0;
+  const discType = document.getElementById('discountType')?.value || 'flat';
+  const discAmt = discType === 'pct' ? sub * discVal / 100 : Math.min(discVal, sub);
+  const afterDisc = Math.max(sub - discAmt, 0);
+  const rate = parseInt(document.getElementById('gstRate').value);
+  const gst = afterDisc * rate / 100;
+  const total = afterDisc + gst;
+  document.getElementById('subtotal').textContent = '₹' + sub.toFixed(2);
+  const discRow = document.getElementById('discountRow');
+  if (discRow) { discRow.style.display = discAmt > 0 ? 'flex' : 'none'; }
+  const discAmtEl = document.getElementById('discountAmt');
+  if (discAmtEl) discAmtEl.textContent = '-₹' + discAmt.toFixed(2);
+  document.getElementById('gstAmt').textContent = '₹' + gst.toFixed(2);
+  document.getElementById('grandTotal').textContent = '₹' + total.toFixed(2);
+  return { sub, discAmt, afterDisc, gst, total };
+}
+
+function checkoutBill() {
+  const billData = {
+  id: state.billCounter,
+  items: state.cart,
+  total: grandTotal,
+  date: new Date(),
+  payment: selectedPayment
+};
+
+saveBillToServer(billData);
+  if (!state.cart.length) { alert('Cart is empty!'); return; }
+  const totals = updateCartTotal();
+  const rate = parseInt(document.getElementById('gstRate').value);
+  const prefix = state.account.billPrefix || '';
+  const bill = {
+    id: state.billCounter,
+    prefix,
+    date: new Date().toISOString(),
+    customer: document.getElementById('customerName').value || 'Walk-in Customer',
+    items: state.cart.map(c => ({ ...c })),
+    subtotal: totals.sub,
+    discount: totals.discAmt,
+    discountType: document.getElementById('discountType')?.value || 'flat',
+    discountVal: parseFloat(document.getElementById('discountVal')?.value) || 0,
+    afterDiscount: totals.afterDisc,
+    gst: totals.gst, gstRate: rate, total: totals.total,
+    payment: selectedPayment,
+    splitCash: selectedPayment === 'split' ? (parseFloat(document.getElementById('splitCash').value)||0) : 0,
+    splitUpi:  selectedPayment === 'split' ? (parseFloat(document.getElementById('splitUpi').value)||0) : 0,
+  };
+  // Validate split
+  if (selectedPayment === 'split') {
+    var splitTotal = bill.splitCash + bill.splitUpi;
+    if (Math.abs(splitTotal - bill.total) > 0.5) {
+      alert('Split amounts (₹' + splitTotal.toFixed(2) + ') do not match total (₹' + bill.total.toFixed(2) + '). Please adjust.');
+      return;
+    }
+  }
+  // Deduct stock
+  bill.items.forEach(item => {
+    const prod = state.products.find(p => p.id === item.id);
+    if (prod && prod.stock != null) prod.stock = Math.max(0, prod.stock - item.qty);
+  });
+  state.sales.push(bill);
+  state.billCounter++;
+  save();
+  updateBillBadge();
+  showReceipt(bill);
+  clearCart();
+  document.getElementById('discountVal').value = '';
+  document.getElementById('splitCash').value = '';
+  document.getElementById('splitUpi').value = '';
+  selectPayment('cash');
+}
+
+function updateBillBadge() {
+  const num = '#' + String(state.billCounter).padStart(3, '0');
+  document.getElementById('billBadge').textContent = 'Bill ' + num;
+  document.getElementById('cartBillNum').textContent = 'Bill ' + num;
+}
+
+// ═══════════════════════════════════════════════════════
+// RECEIPT
+// ═══════════════════════════════════════════════════════
+async function showReceipt(bill) {
+  const acc = state.account;
+  // Fix: saveAccount stores keys as address/phone/gstin (not shopAddress etc.)
+  const shopName = acc.shopName || '';
+  const addr     = acc.address  || acc.shopAddress || '';
+  const phone    = acc.phone    || acc.shopPhone   || '';
+  const gstin    = acc.gstin    || acc.shopGSTIN   || '';
+  const footer   = acc.footer   || acc.shopFooter  || 'Thank you for your purchase!';
+  const upi      = acc.upi      || acc.shopUPI     || '';
+  const payeeName = acc.upiPayee || shopName || 'Shop';
+  const dt = new Date(bill.date);
+  const dateStr = dt.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })
+    + '  ' + dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+  const itemsHtml = bill.items.map(it =>
+    `<div class="receipt-row"><span>${it.icon} ${it.name} x${it.qty}</span><span>&#8377;${(it.price*it.qty).toFixed(2)}</span></div>`
+  ).join('');
+
+  // Generate dynamic UPI QR with exact bill total
+  let qrSection = '';
+  if (upi) {
+    const qrDataUrl = await generateUpiQRDataURL(upi, payeeName, bill.total);
+    if (qrDataUrl) {
+      qrSection = `
+        <div class="receipt-divider"></div>
+        <div class="receipt-center">
+          <div style="font-size:9px;color:#888;margin-bottom:4px;">&#9654; Scan &amp; Pay — Amount Pre-filled</div>
+          <img src="${qrDataUrl}" style="width:130px;height:130px;display:block;margin:0 auto;">
+          <div style="font-weight:700;font-size:13px;margin-top:5px;">&#8377;${bill.total.toFixed(2)}</div>
+          <div style="font-size:10px;color:#555;">${upi}</div>
+          <div style="font-size:9px;color:#aaa;">GPay &middot; PhonePe &middot; Paytm</div>
+        </div>`;
+    } else {
+      qrSection = `<div class="receipt-divider"></div><div class="receipt-center" style="font-size:11px;">UPI: ${upi}</div>`;
+    }
+  }
+
+  document.getElementById('receiptContent').innerHTML = `
+    <div class="receipt-center">
+      ${shopName ? `<div class="receipt-shop">${shopName}</div>` : ''}
+      ${addr     ? `<div style="font-size:11px;margin-top:2px;">${addr}</div>` : ''}
+      ${phone    ? `<div style="font-size:11px;">Ph: ${phone}</div>` : ''}
+      ${gstin    ? `<div style="font-size:10px;margin-top:2px;">GSTIN: <b>${gstin}</b></div>` : ''}
+    </div>
+    <div class="receipt-divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <div style="font-size:13px;font-weight:700;">Bill No: <span style="font-size:15px;">${(bill.prefix||'')}#${String(bill.id).padStart(3,'0')}</span></div>
+      <div style="font-size:10px;color:#555;">${dateStr}</div>
+    </div>
+    ${bill.customer && bill.customer !== 'Walk-in Customer'
+      ? `<div style="font-size:11px;margin-bottom:2px;">Customer: <b>${bill.customer}</b></div>` : ''}
+    <div class="receipt-divider"></div>
+    <div class="receipt-row" style="font-size:10px;color:#888;font-weight:700;margin-bottom:4px;"><span>ITEM</span><span>AMOUNT</span></div>
+    ${itemsHtml}
+    <div class="receipt-divider"></div>
+    <div class="receipt-row"><span>Subtotal</span><span>&#8377;${bill.subtotal.toFixed(2)}</span></div>
+    ${bill.discount > 0 ? `<div class="receipt-row" style="color:#22c55e;"><span>Discount</span><span>-&#8377;${bill.discount.toFixed(2)}</span></div>` : ''}
+    ${bill.gstRate > 0 ? `
+      <div class="receipt-row"><span>CGST (${bill.gstRate/2}%)</span><span>&#8377;${(bill.gst/2).toFixed(2)}</span></div>
+      <div class="receipt-row"><span>SGST (${bill.gstRate/2}%)</span><span>&#8377;${(bill.gst/2).toFixed(2)}</span></div>
+    ` : ''}
+    <div class="receipt-divider"></div>
+    <div class="receipt-row" style="font-weight:700;font-size:1.1rem;"><span>TOTAL</span><span>&#8377;${bill.total.toFixed(2)}</span></div>
+    <div class="receipt-row" style="font-size:11px;color:#555;margin-top:2px;"><span>Payment</span><span>${bill.payment === 'cash' ? 'Cash' : bill.payment === 'upi' ? 'UPI' : bill.payment === 'split' ? 'Split' : 'Unpaid'}</span></div>
+    ${bill.payment === 'split' ? '<div class="receipt-row" style="font-size:10px;color:#888;"><span>  Cash</span><span>&#8377;' + bill.splitCash.toFixed(2) + '</span></div><div class="receipt-row" style="font-size:10px;color:#888;"><span>  UPI</span><span>&#8377;' + bill.splitUpi.toFixed(2) + '</span></div>' : ''}
+    ${qrSection}
+    <div class="receipt-divider"></div>
+    <div class="receipt-center" style="font-size:10px;">${footer}</div>
+    <div class="receipt-center" style="font-size:9px;color:#aaa;margin-top:3px;">*** ${t("thank_you")} ***</div>
+  `;
+  // Apply thermal width
+  const tw = parseInt(state.account.thermalWidth||'80');
+  const rw = tw === 58 ? 240 : 320;
+  const modal_wrap = document.querySelector('#receiptModal .receipt-wrap');
+  if (modal_wrap) modal_wrap.style.width = rw + 'px';
+  document.getElementById('receiptModal').classList.add('open');
+}
+
+function printReceipt() {
+  const content = document.getElementById('receiptContent').innerHTML;
+  const tw2 = parseInt(state.account.thermalWidth||'80'); const pw = tw2===58?260:370;
+  const win = window.open('', '', `width=${pw},height=800`);
+  win.document.write(`<html><head><title>Receipt</title>
+    <style>
+      body{font-family:monospace;font-size:12px;padding:16px;color:#111;line-height:1.6;}
+      .receipt-center{text-align:center;}
+      .receipt-shop{font-size:1.1rem;font-weight:800;letter-spacing:.5px;text-transform:uppercase;}
+      .receipt-divider{border-top:1px dashed #aaa;margin:6px 0;}
+      .receipt-row{display:flex;justify-content:space-between;}
+      img{display:block;margin:4px auto;}
+    </style></head><body>${content}</body></html>`);
+  win.document.close();
+  // Wait for images to load before printing
+  const imgs = win.document.images;
+  if (imgs.length > 0) {
+    let loaded = 0;
+    for (let i = 0; i < imgs.length; i++) {
+      if (imgs[i].complete) { loaded++; if (loaded === imgs.length) { win.focus(); win.print(); win.close(); } }
+      else { imgs[i].onload = () => { loaded++; if (loaded === imgs.length) { win.focus(); win.print(); win.close(); } }; }
+    }
+  } else {
+    win.focus(); win.print(); win.close();
+  }
+}
+
+function closeReceipt() {
+  document.getElementById('receiptModal').classList.remove('open');
+  // Restore normal print button in case refund changed it
+  var actions = document.querySelector('#receiptModal .receipt-actions');
+  if (actions) actions.innerHTML = '<button class="btn btn-accent" style="flex:1" onclick="printReceipt()">🖨 Print</button>'
+    + '<button class="btn btn-ghost" style="flex:1" onclick="closeReceipt()">Close</button>';
+}
+
+// ═══════════════════════════════════════════════════════
+// GST CALCULATOR
+// ═══════════════════════════════════════════════════════
+function calcGST() {
+  const amt = parseFloat(document.getElementById('gstAmount').value) || 0;
+  const rate = parseInt(document.getElementById('gstRateCalc').value);
+  const type = document.getElementById('gstType').value;
+  const half = rate / 2;
+
+  let base, gst, grand;
+  if (type === 'exclusive') { base = amt; gst = base * rate / 100; grand = base + gst; }
+  else { grand = amt; base = amt * 100 / (100 + rate); gst = grand - base; }
+
+  document.getElementById('cgstRate').textContent = half;
+  document.getElementById('sgstRate').textContent = half;
+  document.getElementById('gstBase').textContent = '₹' + base.toFixed(2);
+  document.getElementById('cgstAmt').textContent = '₹' + (gst/2).toFixed(2);
+  document.getElementById('sgstAmt').textContent = '₹' + (gst/2).toFixed(2);
+  document.getElementById('totalGstAmt').textContent = '₹' + gst.toFixed(2);
+  document.getElementById('gstGrand').textContent = '₹' + grand.toFixed(2);
+}
+
+// ═══════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════
+function renderHistory() {
+  const q = (document.getElementById('histSearch').value || '').toLowerCase();
+  const filtered = state.sales.filter(s =>
+    String(s.id).includes(q) || (s.customer || '').toLowerCase().includes(q)
+  ).slice().reverse();
+  const body = document.getElementById('historyBody');
+  if (!filtered.length) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px;">No results</td></tr>'; return; }
+  body.innerHTML = filtered.map(s => {
+    const payLabel = s.payment === 'upi' ? '📱 UPI' : s.payment === 'unpaid' ? '⏳ Unpaid' : '💵 Cash';
+    const payColor = s.payment === 'upi' ? 'var(--blue)' : s.payment === 'unpaid' ? 'var(--red)' : 'var(--green)';
+    const payBg = s.payment === 'upi' ? '#3b82f620' : s.payment === 'unpaid' ? '#ef444420' : '#22c55e20';
+    var isRefundBill = s.type === 'refund';
+    return `
+    <tr style="${isRefundBill ? 'background:rgba(239,68,68,0.06);' : ''}">
+      <td><span class="bill-num" style="${isRefundBill ? 'color:var(--red);' : ''}">${isRefundBill ? '↩ ' : ''}#${String(s.id).padStart(3,'0')}</span></td>
+      <td style="font-size:.78rem;font-family:'DM Mono',monospace">${new Date(s.date).toLocaleDateString('en-IN')}</td>
+      <td>${s.customer || '—'}</td>
+      <td>${s.items.length} items</td>
+      <td style="font-family:'DM Mono',monospace">₹${s.subtotal.toFixed(2)}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--muted)">₹${s.gst.toFixed(2)}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--accent);font-weight:700">₹${s.total.toFixed(2)}</td>
+      <td><span style="border-radius:20px;padding:3px 9px;font-size:.72rem;font-weight:700;background:${payBg};color:${payColor}">${payLabel}</span></td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-ghost" style="padding:4px 10px;font-size:.75rem" onclick="viewBill(${s.id})">View</button>
+        ${!s.refunded ? `<button class="btn btn-ghost" style="padding:4px 8px;font-size:.72rem;border-color:var(--red);color:var(--red);" onclick="openRefund(${s.id})">↩</button>` : `<span style="font-size:.7rem;color:var(--red);font-weight:700;">RETURNED</span>`}
+        <button class="btn btn-red" style="padding:4px 10px;font-size:.75rem" onclick="deleteBill(${s.id})">Del</button>
+      </td>
+    </tr>
+  `}).join('');
+}
+
+function viewBill(id) {
+  const bill = state.sales.find(s => s.id === id);
+  if (bill) showReceipt(bill);
+}
+
+function deleteBill(id) {
+  if (!confirm('Delete this bill?')) return;
+  state.sales = state.sales.filter(s => s.id !== id);
+  save(); renderHistory(); renderDashboard();
+}
+
+function clearAllHistory() {
+  if (!confirm('Clear ALL sales history? This cannot be undone.')) return;
+  state.sales = []; state.billCounter = 1; save(); renderHistory();
+}
+
+function exportCSV() {
+  if (!state.sales.length) { alert('No data to export'); return; }
+  const rows = [['Bill#','Date','Customer','Items','Subtotal','Discount','GST','Total','Payment']];
+  state.sales.forEach(s => rows.push([
+    (s.prefix||'')+'#'+String(s.id).padStart(3,'0'),
+    new Date(s.date).toLocaleDateString('en-IN'),
+    s.customer, s.items.length,
+    s.subtotal.toFixed(2), (s.discount||0).toFixed(2),
+    s.gst.toFixed(2), s.total.toFixed(2), s.payment||'cash'
+  ]));
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'apnabilling_sales.csv'; a.click();
+}
+
+function exportPDF() {
+  const fromVal = document.getElementById('histFrom')?.value;
+  const toVal = document.getElementById('histTo')?.value;
+  const fromD = fromVal ? new Date(fromVal) : null;
+  const toD = toVal ? new Date(toVal + 'T23:59:59') : null;
+  const filtered = state.sales.filter(s => {
+    const d = new Date(s.date);
+    return (!fromD || d >= fromD) && (!toD || d <= toD);
+  });
+  generateSalesPDF(filtered, fromVal, toVal);
+}
+
+function generateSalesPDF(bills, fromVal, toVal) {
+  const acc = state.account;
+  const shopName = acc.shopName || 'My Shop';
+  const totalRev = bills.reduce(function(a,b){return a+b.total;},0);
+  const totalGST = bills.reduce(function(a,b){return a+b.gst;},0);
+  const totalDisc = bills.reduce(function(a,b){return a+(b.discount||0);},0);
+  const dateRange = (fromVal || 'All') + (toVal ? ' to ' + toVal : '');
+  let rows = '';
+  bills.slice().reverse().forEach(function(s) {
+    const discCell = s.discount > 0 ? '-&#8377;' + s.discount.toFixed(2) : '&mdash;';
+    rows += '<tr><td>' + (s.prefix||'') + '#' + String(s.id).padStart(3,'0') + '</td>'
+      + '<td>' + new Date(s.date).toLocaleDateString('en-IN') + '</td>'
+      + '<td>' + (s.customer||'&mdash;') + '</td>'
+      + '<td>&#8377;' + s.subtotal.toFixed(2) + '</td>'
+      + '<td style="color:#22a35a">' + discCell + '</td>'
+      + '<td>&#8377;' + s.gst.toFixed(2) + '</td>'
+      + '<td><b>&#8377;' + s.total.toFixed(2) + '</b></td>'
+      + '<td>' + (s.payment||'cash') + '</td></tr>';
+  });
+  const html = '<!DOCTYPE html><html><head><title>Sales Report</title>'
+    + '<style>body{font-family:sans-serif;padding:24px;color:#111;font-size:13px;}'
+    + 'h1{font-size:1.4rem;margin-bottom:4px;}h2{font-size:1rem;color:#555;font-weight:400;margin-bottom:16px;}'
+    + '.summary{display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;}'
+    + '.scard{background:#f5f5f5;border-radius:8px;padding:12px 20px;min-width:120px;}'
+    + '.scard-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;}'
+    + '.scard-val{font-size:1.2rem;font-weight:700;margin-top:4px;}'
+    + 'table{width:100%;border-collapse:collapse;font-size:12px;}'
+    + 'th{background:#f0f0f0;padding:8px 10px;text-align:left;font-size:11px;text-transform:uppercase;}'
+    + 'td{padding:7px 10px;border-bottom:1px solid #eee;}'
+    + '.footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;}'
+    + '@media print{button{display:none}}</style></head><body>'
+    + '<h1>' + shopName + ' &mdash; Sales Report</h1>'
+    + '<h2>Period: ' + dateRange + ' &nbsp;|&nbsp; ' + bills.length + ' bills</h2>'
+    + '<div class="summary">'
+    + '<div class="scard"><div class="scard-label">Total Revenue</div><div class="scard-val">&#8377;' + totalRev.toFixed(2) + '</div></div>'
+    + '<div class="scard"><div class="scard-label">GST Collected</div><div class="scard-val">&#8377;' + totalGST.toFixed(2) + '</div></div>'
+    + '<div class="scard"><div class="scard-label">Discount Given</div><div class="scard-val">&#8377;' + totalDisc.toFixed(2) + '</div></div>'
+    + '<div class="scard"><div class="scard-label">Net (excl. GST)</div><div class="scard-val">&#8377;' + (totalRev-totalGST).toFixed(2) + '</div></div>'
+    + '</div>'
+    + '<table><thead><tr><th>Bill#</th><th>Date</th><th>Customer</th><th>Subtotal</th><th>Disc</th><th>GST</th><th>Total</th><th>Payment</th></tr></thead>'
+    + '<tbody>' + rows + '</tbody></table>'
+    + '<div class="footer">Generated by ApnaBilling &middot; ' + new Date().toLocaleString('en-IN') + '</div>'
+    + '<br><button onclick="window.print()">Print / Save as PDF</button>'
+    + '</body></html>';
+  const win = window.open('', '', 'width=900,height=700');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+}
+
+function whatsappBill(id) {
+  const s = state.sales.find(function(x){ return x.id === id; });
+  if (!s) return;
+  const shopName = state.account.shopName || 'My Shop';
+  const billNo = (s.prefix||'') + '#' + String(s.id).padStart(3,'0');
+  const itemLines = s.items.map(function(i){
+    return '  - ' + i.name + ' x' + i.qty + ' = Rs.' + (i.price*i.qty).toFixed(2);
+  }).join('\n');
+  let msg = '*' + shopName + '*\n'
+    + 'Bill ' + billNo + '\n'
+    + 'Date: ' + new Date(s.date).toLocaleDateString('en-IN') + '\n'
+    + 'Customer: ' + s.customer + '\n\n'
+    + itemLines + '\n\n'
+    + 'Subtotal: Rs.' + s.subtotal.toFixed(2) + '\n';
+  if (s.discount > 0) msg += 'Discount: -Rs.' + s.discount.toFixed(2) + '\n';
+  msg += 'GST: Rs.' + s.gst.toFixed(2) + '\n'
+    + '*TOTAL: Rs.' + s.total.toFixed(2) + '*\n\n'
+    + 'Thank you!';
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+
+// ═══════════════════════════════════════════════════════
+// ACCOUNT
+// ═══════════════════════════════════════════════════════
+function loadAccount() {
+  const acc = state.account;
+  ['shopName','shopAddress','shopPhone','shopGSTIN','shopUPI','shopFooter'].forEach(id => {
+    const key = id.replace('shop', '').toLowerCase();
+    const el = document.getElementById(id);
+    if (el) el.value = acc[key] || '';
+  });
+  const pfx = document.getElementById('shopPrefix');
+  if (pfx) pfx.value = acc.billPrefix || '';
+  const th = document.getElementById('shopThermal');
+  if (th) th.value = acc.thermalWidth || '80';
+}
+
+function saveAccount() {
+  state.account = {
+    shopName: document.getElementById('shopName')?.value || '',
+    address: document.getElementById('shopAddress')?.value || '',
+    phone: document.getElementById('shopPhone')?.value || '',
+    gstin: document.getElementById('shopGSTIN')?.value || '',
+    upi: document.getElementById('shopUPI')?.value || '',
+    footer: document.getElementById('shopFooter')?.value || '',
+    billPrefix: document.getElementById('shopPrefix')?.value || '',
+    thermalWidth: document.getElementById('shopThermal')?.value || '80',
+  };
+  save();
+}
+
+// ═══════════════════════════════════════════════════════
+// QR CODE (Simple canvas-based QR placeholder)
+// ═══════════════════════════════════════════════════════
+// UPI QR — DYNAMIC GENERATION
+// ═══════════════════════════════════════════════════════
+function upiDeepLink(upiId, payeeName, amount) {
+  let url = 'upi://pay?pa=' + encodeURIComponent(upiId)
+    + '&pn=' + encodeURIComponent(payeeName || 'Shop')
+    + '&cu=INR';
+  if (amount && parseFloat(amount) > 0) url += '&am=' + parseFloat(amount).toFixed(2);
+  return url;
+}
+
+function makeQR(containerId, text, size) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+  try {
+    new QRCode(el, { text, width: size||160, height: size||160,
+      colorDark:'#111111', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch(e) { el.innerHTML = '<div style="color:#aaa;font-size:.75rem;padding:10px;">QR unavailable</div>'; }
+}
+
+function loadUpiPage() {
+  const upiId = state.account.upi || state.account.shopUPI || '';
+  const payeeName = state.account.upiPayee || state.account.shopName || '';
+  const el = document.getElementById('upiIdInput');
+  if (el) el.value = upiId;
+  const pn = document.getElementById('upiPayeeName');
+  if (pn) pn.value = payeeName;
+  liveUpiPreview();
+}
+
+function liveUpiPreview() {
+  const upiId = (document.getElementById('upiIdInput')?.value || '').trim();
+  const payeeName = (document.getElementById('upiPayeeName')?.value || '').trim();
+  const amt = parseFloat(document.getElementById('upiPreviewAmt')?.value) || 100;
+  const amtLabel = document.getElementById('upiPreviewAmtLabel');
+  const idLabel = document.getElementById('upiPreviewIdLabel');
+  if (amtLabel) amtLabel.textContent = '₹' + amt.toFixed(2);
+  if (idLabel) idLabel.textContent = upiId || 'Set your UPI ID';
+  const container = document.getElementById('upiPreviewQR');
+  if (!container) return;
+  if (!upiId) {
+    container.innerHTML = '<div style="width:160px;height:160px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:#aaa;text-align:center;padding:10px;">Enter UPI ID to generate QR</div>';
+    return;
+  }
+  makeQR('upiPreviewQR', upiDeepLink(upiId, payeeName, amt), 160);
+}
+
+function saveUpiSettings() {
+  const upiId = (document.getElementById('upiIdInput')?.value || '').trim();
+  const payeeName = (document.getElementById('upiPayeeName')?.value || '').trim();
+  state.account.upi = upiId;
+  state.account.shopUPI = upiId;
+  state.account.upiPayee = payeeName;
+  save();
+  const st = document.getElementById('qrUploadStatus');
+  if (st) { st.innerHTML = '<span style="color:var(--green)">✓ UPI settings saved</span>'; setTimeout(() => st.innerHTML = '', 2500); }
+  liveUpiPreview();
+}
+
+function generateQR() { loadUpiPage(); }
+function saveUpiId() {}
+function clearQR() {}
+function handleQRUpload() {}
+function refreshQRPreview() { liveUpiPreview(); }
+
+// Returns a Promise<dataURL> of a QR for a given bill amount
+function generateUpiQRDataURL(upiId, payeeName, amount) {
+  return new Promise(resolve => {
+    if (!upiId || typeof QRCode === 'undefined') { resolve(''); return; }
+    const hidden = document.getElementById('qrRenderHidden');
+    const tmp = document.createElement('div');
+    hidden.appendChild(tmp);
+    try {
+      new QRCode(tmp, {
+        text: upiDeepLink(upiId, payeeName, amount),
+        width: 160, height: 160,
+        colorDark: '#111', colorLight: '#fff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } catch(e) { hidden.removeChild(tmp); resolve(''); return; }
+    setTimeout(() => {
+      const canvas = tmp.querySelector('canvas');
+      const url = canvas ? canvas.toDataURL() : '';
+      hidden.removeChild(tmp);
+      resolve(url);
+    }, 250);
+  });
+}
+
+function printQRPage() {
+  const upiId = state.account.upi || state.account.shopUPI || '';
+  const payeeName = state.account.upiPayee || state.account.shopName || 'My Shop';
+  const shopName = state.account.shopName || 'My Shop';
+  if (!upiId) { alert('Please enter and save your UPI ID first.'); return; }
+  const hidden = document.getElementById('qrRenderHidden');
+  const tmp = document.createElement('div');
+  hidden.appendChild(tmp);
+  try {
+    new QRCode(tmp, { text: upiDeepLink(upiId, payeeName, 0).replace('&am=0.00',''),
+      width: 220, height: 220, colorDark:'#111', colorLight:'#fff', correctLevel: QRCode.CorrectLevel.M });
+  } catch(e) {}
+  setTimeout(() => {
+    const canvas = tmp.querySelector('canvas');
+    const img = canvas ? canvas.toDataURL() : '';
+    hidden.removeChild(tmp);
+    const win = window.open('', '', 'width=340,height=480');
+    win.document.write(`<html><head><title>UPI QR</title><style>body{text-align:center;font-family:monospace;padding:24px;color:#111;}h3{margin-bottom:4px;font-size:1.1rem;}img{width:220px;height:220px;}.upi{font-size:.85rem;color:#555;margin-top:6px;}.hint{font-size:.72rem;color:#aaa;margin-top:4px;}</style></head><body><h3>${shopName}</h3><img src="${img}"><div class="upi">${upiId}</div><div class="hint">Scan to Pay · GPay · PhonePe · Paytm</div></body></html>`);
+    win.document.close(); win.focus(); win.print(); win.close();
+  }, 300);
+}
+
+// ═══════════════════════════════════════════════════════
+// ADD PRODUCT
+// ═══════════════════════════════════════════════════════
+function showAddProductModal() {
+  document.getElementById('addProductModal').style.display = 'flex';
+}
+function closeAddProduct() {
+  document.getElementById('addProductModal').style.display = 'none';
+  document.getElementById('newProdName').value = '';
+  document.getElementById('newProdPrice').value = '';
+}
+function addProduct() {
+  const name = document.getElementById('newProdName').value.trim();
+  const price = parseFloat(document.getElementById('newProdPrice').value);
+  const icon = document.getElementById('newProdIcon').value;
+  if (!name || !price) { alert('Enter name and price'); return; }
+  const iconCatMap = { '🛒':'General','🍚':'Grocery','🥤':'Beverage','💊':'Medicine','👕':'Clothing','⚡':'Electronics','🍕':'Food','📦':'Package','🌿':'Organic' };
+  const category = iconCatMap[icon] || 'General';
+  state.products.push({ id: Date.now(), name, price, icon, category });
+  save(); buildPosCatPills(); closeAddProduct(); renderProducts();
+}
+
+let selectedPayment = 'cash';
+
+function selectPayment(method) {
+  selectedPayment = method;
+  ['cash','upi','split','unpaid'].forEach(function(m) {
+    var btn = document.getElementById('pay-' + m);
+    if (btn) btn.className = 'pay-btn' + (m === method ? ' active ' + m : '');
+  });
+  var labels = {
+    cash: '💵 ' + t('pay_cash') + ' — ' + t('checkout'),
+    upi: '📱 UPI — ' + t('checkout'),
+    split: '⚡ ' + t('pay_split') + ' — ' + t('checkout'),
+    unpaid: '⏳ ' + t('pay_unpaid')
+  };
+  var colors = { cash: 'var(--accent)', upi: 'var(--blue)', split: 'var(--blue)', unpaid: 'var(--red)' };
+  var btn = document.getElementById('checkoutBtn');
+  if (btn) {
+    btn.textContent = labels[method] || labels.cash;
+    btn.style.background = colors[method] || colors.cash;
+    btn.style.color = (method === 'cash' || method === 'split') ? '#000' : '#fff';
+  }
+  var splitPanel = document.getElementById('splitPanel');
+  if (splitPanel) splitPanel.style.display = method === 'split' ? 'block' : 'none';
+  if (method === 'split') updateSplitBalance();
+}
+
+function onSplitInput(from) {
+  var total = parseFloat(document.getElementById('grandTotal').textContent.replace(/[^0-9.]/g,'')) || 0;
+  var cash = parseFloat(document.getElementById('splitCash').value) || 0;
+  var upi = parseFloat(document.getElementById('splitUpi').value) || 0;
+  if (from === 'cash') {
+    var rem = Math.max(0, total - cash);
+    document.getElementById('splitUpi').value = rem > 0 ? rem.toFixed(2) : '';
+  } else {
+    var rem = Math.max(0, total - upi);
+    document.getElementById('splitCash').value = rem > 0 ? rem.toFixed(2) : '';
+  }
+  updateSplitBalance();
+}
+
+function updateSplitBalance() {
+  var total = parseFloat(document.getElementById('grandTotal').textContent.replace(/[^0-9.]/g,'')) || 0;
+  var cash = parseFloat(document.getElementById('splitCash').value) || 0;
+  var upi = parseFloat(document.getElementById('splitUpi').value) || 0;
+  var bal = total - cash - upi;
+  var el = document.getElementById('splitBalance');
+  if (el) {
+    el.textContent = (bal < 0 ? '+' : '') + '₹' + Math.abs(bal).toFixed(2);
+    el.style.color = Math.abs(bal) < 0.01 ? 'var(--green)' : 'var(--red)';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// PRODUCTS PAGE
+// ═══════════════════════════════════════════════════════
+function renderProductsPage() {
+  const q = (document.getElementById('prodSearch')?.value || '').toLowerCase();
+  const catFilter = document.getElementById('prodCatFilter')?.value || '';
+
+  // Populate category dropdown with only the 9 fixed categories
+  const sel = document.getElementById('prodCatFilter');
+  if (sel) {
+    const current = sel.value;
+    const usedCats = new Set(state.products.map(p => p.category || 'General'));
+    sel.innerHTML = '<option value="">All Categories</option>' +
+      CATEGORIES.filter(c => usedCats.has(c.name))
+        .map(c => `<option value="${c.name}" ${c.name === current ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('');
+  }
+
+  const filtered = state.products.filter(p =>
+    (!catFilter || (p.category || 'General') === catFilter) &&
+    p.name.toLowerCase().includes(q)
+  );
+  document.getElementById('prodCount').textContent = state.products.length + ' product' + (state.products.length !== 1 ? 's' : '');
+  const tbody = document.getElementById('prodTableBody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:28px;">No products found</td></tr>`;
+    return;
+  }
+  const catColors = {
+    General:'#6b7280', Grocery:'#22c55e', Beverage:'#3b82f6',
+    Medicine:'#ef4444', Clothing:'#ec4899', Electronics:'#f59e0b',
+    Food:'#a855f7', Package:'#64748b', Organic:'#84cc16'
+  };
+  tbody.innerHTML = filtered.map((p, i) => {
+    const cat = p.category || 'General';
+    const col = catColors[cat] || '#6b7280';
+    return `
+    <tr>
+      <td style="color:var(--muted);font-family:'DM Mono',monospace;font-size:.78rem;">${i + 1}</td>
+      <td style="font-size:1.4rem;line-height:1;">${p.icon}</td>
+      <td style="font-weight:600;">${p.name}</td>
+      <td><span style="background:${col}22;color:${col};border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;">${cat}</span></td>
+      <td style="font-family:'DM Mono',monospace;color:var(--accent);font-weight:700;">₹${parseFloat(p.price).toFixed(2)}</td>
+      <td>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost" style="padding:5px 12px;font-size:.78rem;" onclick="editProd(${p.id})">✏️ Edit</button>
+          <button class="btn btn-red" style="padding:5px 12px;font-size:.78rem;" onclick="deleteProd(${p.id})">🗑</button>
+        </div>
+      </td>
+    </tr>
+  `}).join('');
+}
+
+function openAddProdPage() {
+  document.getElementById('pf-editId').value = '';
+  document.getElementById('pf-name').value = '';
+  document.getElementById('pf-price').value = '';
+  document.getElementById('pf-icon').value = '🛒';
+  document.getElementById('prodFormTitle').textContent = 'Add New Product';
+  document.getElementById('prodForm').style.display = 'block';
+  document.getElementById('pf-name').focus();
+  document.getElementById('prodForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function editProd(id) {
+  const p = state.products.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('pf-editId').value = id;
+  document.getElementById('pf-name').value = p.name;
+  document.getElementById('pf-price').value = p.price;
+  document.getElementById('pf-icon').value = p.icon;
+  document.getElementById('pf-category').value = p.category || 'General';
+  document.getElementById('prodFormTitle').textContent = '✏️ Edit: ' + p.name;
+  document.getElementById('prodForm').style.display = 'block';
+  document.getElementById('pf-name').focus();
+  document.getElementById('prodForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function saveProdForm() {
+  const name = document.getElementById('pf-name').value.trim();
+  const price = parseFloat(document.getElementById('pf-price').value);
+  const icon = document.getElementById('pf-icon').value;
+  const category = document.getElementById('pf-category').value;
+  const editId = document.getElementById('pf-editId').value;
+  if (!name) { const el = document.getElementById('pf-name'); el.style.borderColor = 'var(--red)'; el.focus(); setTimeout(() => el.style.borderColor = '', 900); return; }
+  if (!price || price <= 0) { const el = document.getElementById('pf-price'); el.style.borderColor = 'var(--red)'; el.focus(); setTimeout(() => el.style.borderColor = '', 900); return; }
+  if (editId) {
+    const idx = state.products.findIndex(x => x.id == editId);
+    if (idx !== -1) state.products[idx] = { id: state.products[idx].id, name, price, icon, category };
+  } else {
+    state.products.push({ id: Date.now(), name, price, icon, category });
+  }
+  save(); closeProdForm(); renderProductsPage(); buildPosCatPills(); renderProducts();
+}
+
+function closeProdForm() { document.getElementById('prodForm').style.display = 'none'; }
+
+function deleteProd(id) {
+  const p = state.products.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm('Delete "' + p.name + '"? This cannot be undone.')) return;
+  state.products = state.products.filter(x => x.id !== id);
+  save(); renderProductsPage(); buildPosCatPills(); renderProducts();
+}
+
+function quickAddItem() {
+  const nameEl = document.getElementById('quickName');
+  const priceEl = document.getElementById('quickPrice');
+  const qtyEl = document.getElementById('quickQty');
+  const name = nameEl.value.trim();
+  const price = parseFloat(priceEl.value);
+  const qty = parseInt(qtyEl.value) || 1;
+  if (!name) { nameEl.focus(); nameEl.style.borderColor = 'var(--red)'; setTimeout(() => nameEl.style.borderColor = '', 800); return; }
+  if (!price || price <= 0) { priceEl.focus(); priceEl.style.borderColor = 'var(--red)'; setTimeout(() => priceEl.style.borderColor = '', 800); return; }
+  const existing = state.cart.find(c => c.name.toLowerCase() === name.toLowerCase() && c.price === price);
+  if (existing) { existing.qty += qty; }
+  else { state.cart.push({ id: 'q_' + Date.now(), name, price, icon: '📦', qty }); }
+  renderCart();
+  const btn = document.querySelector('[onclick="quickAddItem()"]');
+  btn.textContent = '✓'; btn.style.background = 'var(--green)';
+  setTimeout(() => { btn.textContent = '+'; btn.style.background = ''; }, 600);
+  nameEl.value = ''; priceEl.value = ''; qtyEl.value = '1';
+  nameEl.focus();
+}
+
+// ═══════════════════════════════════════════════════════
+// STOCK MANAGEMENT
+// ═══════════════════════════════════════════════════════
+function renderStock() {
+  const threshold = parseInt(document.getElementById('lowStockThreshold')?.value) || 5;
+  const body = document.getElementById('stockBody');
+  if (!body) return;
+  const lowItems = state.products.filter(p => p.stock != null && p.stock <= threshold);
+  const alertEl = document.getElementById('lowStockAlert');
+  if (alertEl) {
+    if (lowItems.length) {
+      alertEl.style.display = 'block';
+      alertEl.innerHTML = '⚠️ Low Stock: ' + lowItems.map(p => `<b>${p.name}</b> (${p.stock} left)`).join(' · ');
+    } else { alertEl.style.display = 'none'; }
+  }
+  const stockStatus = document.getElementById('stockStatus');
+  if (stockStatus) {
+    const totalVal = state.products.reduce((a,p) => a + (p.stock||0)*p.price, 0);
+    stockStatus.textContent = `${state.products.length} products · Stock value ₹${totalVal.toFixed(0)}`;
+  }
+  const catColors = { Grocery:'#22c55e',Beverage:'#3b82f6',Medicine:'#ef4444',Clothing:'#ec4899',Electronics:'#f59e0b',Food:'#a855f7',Package:'#64748b',Organic:'#84cc16',General:'#6b7280' };
+  const totalSoldMap = {};
+  state.sales.forEach(s => s.items.forEach(it => { totalSoldMap[it.id] = (totalSoldMap[it.id]||0) + it.qty; }));
+  body.innerHTML = state.products.map(p => {
+    const stock = p.stock != null ? p.stock : null;
+    const sold = totalSoldMap[p.id] || 0;
+    const cat = p.category || 'General';
+    const col = catColors[cat] || '#6b7280';
+    const isLow = stock != null && stock <= threshold;
+    const statusBadge = stock == null
+      ? `<span style="background:#6b728020;color:#6b7280;border-radius:20px;padding:2px 8px;font-size:.72rem;">Not tracked</span>`
+      : stock === 0
+        ? `<span style="background:#ef444420;color:var(--red);border-radius:20px;padding:2px 8px;font-size:.72rem;font-weight:700;">Out of Stock</span>`
+        : isLow
+          ? `<span style="background:#f0a50020;color:var(--accent);border-radius:20px;padding:2px 8px;font-size:.72rem;font-weight:700;">Low Stock</span>`
+          : `<span style="background:#22c55e20;color:var(--green);border-radius:20px;padding:2px 8px;font-size:.72rem;font-weight:700;">In Stock</span>`;
+    return `<tr>
+      <td style="font-size:1.3rem">${p.icon}</td>
+      <td style="font-weight:600">${p.name}</td>
+      <td><span style="background:${col}22;color:${col};border-radius:20px;padding:2px 8px;font-size:.72rem;font-weight:700">${cat}</span></td>
+      <td style="font-family:'DM Mono',monospace;color:var(--accent)">₹${p.price.toFixed(2)}</td>
+      <td>
+        <input type="number" min="0" value="${stock!=null?stock:''}" placeholder="—" 
+          style="width:70px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:.82rem;text-align:center;"
+          onchange="setStock(${p.id}, this.value)">
+      </td>
+      <td style="font-family:'DM Mono',monospace;color:var(--muted)">${sold}</td>
+      <td>${statusBadge}</td>
+      <td>
+        <button class="btn btn-ghost" style="padding:4px 10px;font-size:.75rem" onclick="addStockQty(${p.id},10)">+10</button>
+        <button class="btn btn-ghost" style="padding:4px 10px;font-size:.75rem;margin-left:4px" onclick="addStockQty(${p.id},50)">+50</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function setStock(id, val) {
+  const p = state.products.find(x => x.id === id);
+  if (!p) return;
+  p.stock = val === '' ? null : Math.max(0, parseInt(val) || 0);
+  save(); renderStock();
+}
+
+function addStockQty(id, qty) {
+  const p = state.products.find(x => x.id === id);
+  if (!p) return;
+  p.stock = (p.stock || 0) + qty;
+  save(); renderStock();
+}
+
+// ═══════════════════════════════════════════════════════
+// REPORTS PAGE
+// ═══════════════════════════════════════════════════════
+function initReportDates() {
+  const to = new Date();
+  const from = new Date(); from.setDate(1); // first of month
+  const fmt = d => d.toISOString().split('T')[0];
+  const rf = document.getElementById('repFrom');
+  const rt = document.getElementById('repTo');
+  if (rf && !rf.value) rf.value = fmt(from);
+  if (rt && !rt.value) rt.value = fmt(to);
+  runReport();
+}
+
+function runReport() {
+  const fromVal = document.getElementById('repFrom')?.value;
+  const toVal = document.getElementById('repTo')?.value;
+  const fromD = fromVal ? new Date(fromVal) : null;
+  const toD = toVal ? new Date(toVal + 'T23:59:59') : null;
+  const bills = state.sales.filter(s => {
+    const d = new Date(s.date);
+    return (!fromD || d >= fromD) && (!toD || d <= toD);
+  });
+  const totalRev = bills.reduce((a,b)=>a+b.total,0);
+  const totalGST = bills.reduce((a,b)=>a+b.gst,0);
+  const totalDisc = bills.reduce((a,b)=>a+(b.discount||0),0);
+  const totalSub = bills.reduce((a,b)=>a+b.subtotal,0);
+  const stats = document.getElementById('repStats');
+  if (stats) {
+    stats.innerHTML = `
+      <div class="stat-card yellow"><div class="stat-label">Revenue</div><div class="stat-value">₹${totalRev.toFixed(0)}</div><div class="stat-sub">${bills.length} bills</div></div>
+      <div class="stat-card green"><div class="stat-label">GST Collected</div><div class="stat-value">₹${totalGST.toFixed(0)}</div><div class="stat-sub">CGST+SGST</div></div>
+      <div class="stat-card blue"><div class="stat-label">Discount Given</div><div class="stat-value">₹${totalDisc.toFixed(0)}</div><div class="stat-sub">Total discounts</div></div>
+      <div class="stat-card red"><div class="stat-label">Net (excl. GST)</div><div class="stat-value">₹${(totalRev-totalGST).toFixed(0)}</div><div class="stat-sub">After GST</div></div>
+    `;
+    stats.querySelectorAll('.stat-card').forEach((c,i) => {
+      const cls = ['yellow','green','blue','red'][i];
+      c.className = 'stat-card ' + cls;
+    });
+  }
+  const body = document.getElementById('repBody');
+  if (!body) return;
+  if (!bills.length) { body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px;">No bills in this range</td></tr>'; return; }
+  body.innerHTML = bills.slice().reverse().map(s => {
+    const payColor = s.payment==='upi'?'var(--blue)':s.payment==='unpaid'?'var(--red)':'var(--green)';
+    const payBg = s.payment==='upi'?'#3b82f620':s.payment==='unpaid'?'#ef444420':'#22c55e20';
+    return `<tr>
+      <td><span class="bill-num">${(s.prefix||'')+'#'+String(s.id).padStart(3,'0')}</span></td>
+      <td style="font-size:.78rem;font-family:'DM Mono',monospace">${new Date(s.date).toLocaleDateString('en-IN')}</td>
+      <td>${s.customer||'—'}</td>
+      <td>${s.items.length}</td>
+      <td style="font-family:'DM Mono',monospace">₹${s.subtotal.toFixed(2)}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--green)">${s.discount>0?'-₹'+s.discount.toFixed(2):'—'}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--muted)">₹${s.gst.toFixed(2)}</td>
+      <td style="font-family:'DM Mono',monospace;color:var(--accent);font-weight:700">₹${s.total.toFixed(2)}</td>
+      <td><span style="border-radius:20px;padding:2px 8px;font-size:.72rem;font-weight:700;background:${payBg};color:${payColor}">${s.payment||'cash'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function exportReportPDF() {
+  const fromVal = document.getElementById('repFrom')?.value;
+  const toVal = document.getElementById('repTo')?.value;
+  const fromD = fromVal ? new Date(fromVal) : null;
+  const toD = toVal ? new Date(toVal + 'T23:59:59') : null;
+  const bills = state.sales.filter(s => {
+    const d = new Date(s.date);
+    return (!fromD || d >= fromD) && (!toD || d <= toD);
+  });
+  generateSalesPDF(bills, fromVal, toVal);
+}
+
+// ═══════════════════════════════════════════════════════
+// MULTI-LANGUAGE (i18n)
+// ═══════════════════════════════════════════════════════
+var LANGS = {
+  en: {
+    dashboard: 'Dashboard', pos: 'POS Billing', gst: 'GST Calculator',
+    history: 'Sales History', reports: 'Reports', stock: 'Stock',
+    account: 'Account', upi: 'UPI / QR', products: 'Products',
+    cart: 'Cart', checkout: 'Checkout', clear: 'Clear',
+    payment_method: 'Payment Method', pay_cash: 'Cash', pay_split: 'Split', pay_unpaid: 'Unpaid',
+    today_sales: "Today's Sales", total_revenue: 'Total Revenue',
+    avg_bill: 'Avg Bill Value', total_gst: 'Total GST',
+    search_products: 'Search products...', customer_name: 'Customer name (optional)',
+    item_name: 'Item name', price: 'Price', qty: 'Qty',
+    subtotal: 'Subtotal', discount: 'Discount', total: 'TOTAL',
+    no_bills: 'No bills yet', tap_to_add: 'Tap products to add',
+    quick_add: 'Quick Add — no search needed', bill_no: 'Bill No',
+    date: 'Date', customer: 'Customer', payment: 'Payment',
+    thank_you: 'Thank you — Visit Again', powered_by: 'Powered by ApnaBilling',
+    save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit',
+    out_of_stock: 'Out of stock', low_stock: 'left', in_stock: 'In Stock'
+  },
+  ta: {
+    dashboard: 'டாஷ்போர்டு', pos: 'பில்லிங்', gst: 'GST கணக்கிடு',
+    history: 'விற்பனை வரலாறு', reports: 'அறிக்கைகள்', stock: 'இருப்பு',
+    account: 'கணக்கு', upi: 'UPI / QR', products: 'பொருட்கள்',
+    cart: 'கூடை', checkout: 'பணம் பெறு', clear: 'அழி',
+    payment_method: 'கட்டண முறை', pay_cash: 'பணம்', pay_split: 'பிரி', pay_unpaid: 'நிலுவை',
+    today_sales: 'இன்றைய விற்பனை', total_revenue: 'மொத்த வருமானம்',
+    avg_bill: 'சராசரி பில்', total_gst: 'மொத்த GST',
+    search_products: 'பொருட்களை தேடு...', customer_name: 'வாடிக்கையாளர் பெயர் (விரும்பினால்)',
+    item_name: 'பொருளின் பெயர்', price: 'விலை', qty: 'அளவு',
+    subtotal: 'கூட்டுத்தொகை', discount: 'தள்ளுபடி', total: 'மொத்தம்',
+    no_bills: 'பில் இல்லை', tap_to_add: 'பொருட்களை தட்டவும்',
+    quick_add: 'விரைவு சேர்க்கை', bill_no: 'பில் எண்',
+    date: 'தேதி', customer: 'வாடிக்கையாளர்', payment: 'கட்டணம்',
+    thank_you: 'நன்றி — மீண்டும் வாருங்கள்', powered_by: 'ApnaBilling  மூலம்',
+    save: 'சேமி', cancel: 'ரத்து', delete: 'நீக்கு', edit: 'திருத்து',
+    out_of_stock: 'இருப்பு இல்லை', low_stock: 'மீதம்', in_stock: 'கையிருப்பு உள்ளது'
+  },
+  hi: {
+    dashboard: 'डैशबोर्ड', pos: 'बिलिंग', gst: 'GST कैलकुलेटर',
+    history: 'बिक्री इतिहास', reports: 'रिपोर्ट', stock: 'स्टॉक',
+    account: 'खाता', upi: 'UPI / QR', products: 'उत्पाद',
+    cart: 'कार्ट', checkout: 'चेकआउट', clear: 'साफ़ करें',
+    payment_method: 'भुगतान विधि', pay_cash: 'नकद', pay_split: 'विभाजित', pay_unpaid: 'बकाया',
+    today_sales: 'आज की बिक्री', total_revenue: 'कुल राजस्व',
+    avg_bill: 'औसत बिल', total_gst: 'कुल GST',
+    search_products: 'उत्पाद खोजें...', customer_name: 'ग्राहक का नाम (वैकल्पिक)',
+    item_name: 'उत्पाद का नाम', price: 'मूल्य', qty: 'मात्रा',
+    subtotal: 'उप-योग', discount: 'छूट', total: 'कुल',
+    no_bills: 'कोई बिल नहीं', tap_to_add: 'उत्पाद चुनें',
+    quick_add: 'त्वरित जोड़ें', bill_no: 'बिल नंबर',
+    date: 'तारीख', customer: 'ग्राहक', payment: 'भुगतान',
+    thank_you: 'धन्यवाद — फिर आएं', powered_by: 'ApnaBilling  द्वारा',
+    save: 'सहेजें', cancel: 'रद्द करें', delete: 'हटाएं', edit: 'संपादित करें',
+    out_of_stock: 'स्टॉक समाप्त', low_stock: 'बचा', in_stock: 'उपलब्ध'
+  },
+  te: {
+    dashboard: 'డాష్‌బోర్డ్', pos: 'బిల్లింగ్', gst: 'GST కాలిక్యులేటర్',
+    history: 'విక్రయ చరిత్ర', reports: 'నివేదికలు', stock: 'స్టాక్',
+    account: 'ఖాతా', upi: 'UPI / QR', products: 'ఉత్పత్తులు',
+    cart: 'కార్ట్', checkout: 'చెక్అవుట్', clear: 'క్లియర్',
+    payment_method: 'చెల్లింపు విధానం', pay_cash: 'నగదు', pay_split: 'విభజన', pay_unpaid: 'బకాయి',
+    today_sales: 'నేటి అమ్మకాలు', total_revenue: 'మొత్తం ఆదాయం',
+    avg_bill: 'సగటు బిల్లు', total_gst: 'మొత్తం GST',
+    search_products: 'ఉత్పత్తులు వెతకండి...', customer_name: 'కస్టమర్ పేరు (ఐచ్ఛికం)',
+    item_name: 'వస్తువు పేరు', price: 'ధర', qty: 'పరిమాణం',
+    subtotal: 'ఉపమొత్తం', discount: 'తగ్గింపు', total: 'మొత్తం',
+    no_bills: 'బిల్లులు లేవు', tap_to_add: 'ఉత్పత్తులను నొక్కండి',
+    quick_add: 'త్వరిత జోడింపు', bill_no: 'బిల్లు నం',
+    date: 'తేదీ', customer: 'కస్టమర్', payment: 'చెల్లింపు',
+    thank_you: 'ధన్యవాదాలు — మళ్ళీ రండి', powered_by: 'ApnaBilling  ద్వారా',
+    save: 'సేవ్', cancel: 'రద్దు', delete: 'తొలగించు', edit: 'సవరించు',
+    out_of_stock: 'స్టాక్ లేదు', low_stock: 'మిగిలింది', in_stock: 'అందుబాటులో'
+  },
+  ml: {
+    dashboard: 'ഡാഷ്‌ബോർഡ്', pos: 'ബില്ലിംഗ്', gst: 'GST കാൽക്കുലേറ്റർ',
+    history: 'വിൽപ്പന ചരിത്രം', reports: 'റിപ്പോർട്ടുകൾ', stock: 'സ്റ്റോക്ക്',
+    account: 'അക്കൗണ്ട്', upi: 'UPI / QR', products: 'ഉൽപ്പന്നങ്ങൾ',
+    cart: 'കാർട്ട്', checkout: 'ചെക്കൗട്ട്', clear: 'മായ്ക്കുക',
+    payment_method: 'പണമടക്കൽ രീതി', pay_cash: 'പണം', pay_split: 'വിഭജനം', pay_unpaid: 'ബാക്കി',
+    today_sales: 'ഇന്നത്തെ വിൽപ്പന', total_revenue: 'മൊത്തം വരുമാനം',
+    avg_bill: 'ശരാശരി ബിൽ', total_gst: 'മൊത്തം GST',
+    search_products: 'ഉൽപ്പന്നങ്ങൾ തിരയുക...', customer_name: 'ഉപഭോക്താവിന്റെ പേര്',
+    item_name: 'ഇനത്തിന്റെ പേര്', price: 'വില', qty: 'അളവ്',
+    subtotal: 'ഉപ-ആകെ', discount: 'കിഴിവ്', total: 'ആകെ',
+    no_bills: 'ബില്ലുകൾ ഇല്ല', tap_to_add: 'ഉൽപ്പന്നങ്ങൾ ടാപ്പ് ചെയ്യുക',
+    quick_add: 'ദ്രുത ചേർക്കൽ', bill_no: 'ബിൽ നം',
+    date: 'തീയതി', customer: 'ഉപഭോക്താവ്', payment: 'പണമടക്കൽ',
+    thank_you: 'നന്ദി — വീണ്ടും വരിക', powered_by: 'ApnaBilling ',
+    save: 'സേവ്', cancel: 'റദ്ദാക്കുക', delete: 'ഇല്ലാതാക്കുക', edit: 'എഡിറ്റ്',
+    out_of_stock: 'സ്റ്റോക്ക് ഇല്ല', low_stock: 'ശേഷിക്കുന്നത്', in_stock: 'ലഭ്യമാണ്'
+  },
+  kn: {
+    dashboard: 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್', pos: 'ಬಿಲ್ಲಿಂಗ್', gst: 'GST ಕ್ಯಾಲ್ಕುಲೇಟರ್',
+    history: 'ಮಾರಾಟ ಇತಿಹಾಸ', reports: 'ವರದಿಗಳು', stock: 'ಸ್ಟಾಕ್',
+    account: 'ಖಾತೆ', upi: 'UPI / QR', products: 'ಉತ್ಪನ್ನಗಳು',
+    cart: 'ಕಾರ್ಟ್', checkout: 'ಚೆಕ್‌ಔಟ್', clear: 'ತೆರವು',
+    payment_method: 'ಪಾವತಿ ವಿಧಾನ', pay_cash: 'ನಗದು', pay_split: 'ವಿಭಜನೆ', pay_unpaid: 'ಬಾಕಿ',
+    today_sales: 'ಇಂದಿನ ಮಾರಾಟ', total_revenue: 'ಒಟ್ಟು ಆದಾಯ',
+    avg_bill: 'ಸರಾಸರಿ ಬಿಲ್', total_gst: 'ಒಟ್ಟು GST',
+    search_products: 'ಉತ್ಪನ್ನಗಳನ್ನು ಹುಡುಕಿ...', customer_name: 'ಗ್ರಾಹಕರ ಹೆಸರು',
+    item_name: 'ಐಟಂ ಹೆಸರು', price: 'ಬೆಲೆ', qty: 'ಪ್ರಮಾಣ',
+    subtotal: 'ಉಪ-ಮೊತ್ತ', discount: 'ರಿಯಾಯಿತಿ', total: 'ಒಟ್ಟು',
+    no_bills: 'ಬಿಲ್ ಇಲ್ಲ', tap_to_add: 'ಉತ್ಪನ್ನಗಳನ್ನು ಟ್ಯಾಪ್ ಮಾಡಿ',
+    quick_add: 'ತ್ವರಿತ ಸೇರ್ಪಡೆ', bill_no: 'ಬಿಲ್ ಸಂಖ್ಯೆ',
+    date: 'ದಿನಾಂಕ', customer: 'ಗ್ರಾಹಕ', payment: 'ಪಾವತಿ',
+    thank_you: 'ಧನ್ಯವಾದಗಳು — ಮತ್ತೆ ಬನ್ನಿ', powered_by: 'ApnaBilling ',
+    save: 'ಉಳಿಸಿ', cancel: 'ರದ್ದು', delete: 'ಅಳಿಸಿ', edit: 'ಸಂಪಾದಿಸಿ',
+    out_of_stock: 'ಸ್ಟಾಕ್ ಇಲ್ಲ', low_stock: 'ಉಳಿದಿದೆ', in_stock: 'ಲಭ್ಯವಿದೆ'
+  },
+  mr: {
+    dashboard: 'डॅशबोर्ड', pos: 'बिलिंग', gst: 'GST कॅल्क्युलेटर',
+    history: 'विक्री इतिहास', reports: 'अहवाल', stock: 'स्टॉक',
+    account: 'खाते', upi: 'UPI / QR', products: 'उत्पादने',
+    cart: 'कार्ट', checkout: 'चेकआउट', clear: 'साफ करा',
+    payment_method: 'देयक पद्धत', pay_cash: 'रोख', pay_split: 'विभाजित', pay_unpaid: 'थकबाकी',
+    today_sales: 'आजची विक्री', total_revenue: 'एकूण महसूल',
+    avg_bill: 'सरासरी बिल', total_gst: 'एकूण GST',
+    search_products: 'उत्पादने शोधा...', customer_name: 'ग्राहकाचे नाव (पर्यायी)',
+    item_name: 'वस्तूचे नाव', price: 'किंमत', qty: 'प्रमाण',
+    subtotal: 'उप-एकूण', discount: 'सूट', total: 'एकूण',
+    no_bills: 'बिल नाही', tap_to_add: 'उत्पादने निवडा',
+    quick_add: 'जलद जोडा', bill_no: 'बिल क्र.',
+    date: 'तारीख', customer: 'ग्राहक', payment: 'देयक',
+    thank_you: 'धन्यवाद — पुन्हा या', powered_by: 'ApnaBilling ',
+    save: 'जतन करा', cancel: 'रद्द करा', delete: 'हटवा', edit: 'संपादित करा',
+    out_of_stock: 'स्टॉक संपला', low_stock: 'शिल्लक', in_stock: 'उपलब्ध'
+  }
+};
+
+var currentLang = localStorage.getItem('bm_lang') || 'en';
+
+function t(key) {
+  var lang = LANGS[currentLang] || LANGS.en;
+  return lang[key] || LANGS.en[key] || key;
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('bm_lang', lang);
+  applyLang();
+}
+
+function applyLang() {
+  var sel = document.getElementById('langSelect');
+  if (sel) sel.value = currentLang;
+
+  // Update all data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+
+  // Update sidebar nav labels
+  var navMap = { dashboard:'dashboard', pos:'pos', gst:'gst', history:'history',
+    reports:'reports', stock:'stock', account:'account', upi:'upi', products:'products' };
+  document.querySelectorAll('.nav-item span').forEach(function(span) {
+    var navItem = span.closest('.nav-item');
+    if (!navItem) return;
+    var onclick = navItem.getAttribute('onclick') || '';
+    var match = onclick.match(/navigate\('([^']+)'/);
+    if (match && navMap[match[1]]) span.textContent = t(match[1]);
+  });
+
+  // Update placeholders
+  var phMap = {
+    productSearch: 'search_products',
+    customerName: 'customer_name',
+    quickName: 'item_name',
+    quickPrice: 'price',
+    quickQty: 'qty'
+  };
+  Object.keys(phMap).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.placeholder = t(phMap[id]);
+  });
+
+  // Update cart title
+  var cartTitle = document.querySelector('.cart-title');
+  if (cartTitle) cartTitle.textContent = '🛒 ' + t('cart');
+
+  // Update stat labels
+  var statLabels = document.querySelectorAll('.stat-label');
+  var statKeys = ['today_sales','total_revenue','avg_bill','total_gst'];
+  statLabels.forEach(function(el, i) { if (statKeys[i]) el.textContent = t(statKeys[i]); });
+
+  // Re-apply payment button state
+  selectPayment(selectedPayment);
+
+  // Update page title
+  var titleMap = { dashboard:'dashboard', pos:'pos', gst:'gst', history:'history',
+    reports:'reports', stock:'stock', account:'account', upi:'upi', products:'products' };
+  var currentPage = document.querySelector('.page.active');
+  if (currentPage) {
+    var pageId = currentPage.id.replace('page-','');
+    if (titleMap[pageId]) document.getElementById('pageTitle').textContent = t(titleMap[pageId]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// RETURN / REFUND
+// ═══════════════════════════════════════════════════════
+var _refundBillId = null;
+
+function openRefund(id) {
+  var bill = state.sales.find(function(s){ return s.id === id; });
+  if (!bill) return;
+  if (bill.refunded) { alert('This bill has already been refunded.'); return; }
+  if (bill.type === 'refund') { alert('Cannot refund a refund bill.'); return; }
+  _refundBillId = id;
+
+  document.getElementById('refundBillLabel').textContent =
+    'Bill ' + (bill.prefix||'') + '#' + String(bill.id).padStart(3,'0') +
+    ' · ' + bill.customer + ' · ₹' + bill.total.toFixed(2);
+
+  var itemsHtml = bill.items.map(function(item, idx) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;background:var(--surface2);margin-bottom:6px;">'
+      + '<input type="checkbox" id="ri_' + idx + '" style="width:16px;height:16px;accent-color:var(--red);cursor:pointer;" checked onchange="calcRefundTotal()">'
+      + '<span style="font-size:1.2rem;">' + item.icon + '</span>'
+      + '<div style="flex:1;">'
+      + '<div style="font-size:.85rem;font-weight:600;">' + item.name + '</div>'
+      + '<div style="font-size:.75rem;color:var(--muted);">₹' + item.price.toFixed(2) + ' each</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:6px;">'
+      + '<button onclick="adjRefQty(' + idx + ',-1)" style="width:22px;height:22px;border:1px solid var(--border);border-radius:4px;background:var(--surface3);color:var(--text);cursor:pointer;font-size:.9rem;">−</button>'
+      + '<input type="number" id="rq_' + idx + '" value="' + item.qty + '" min="0" max="' + item.qty + '" style="width:42px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 4px;font-size:.82rem;" oninput="calcRefundTotal()">'
+      + '<button onclick="adjRefQty(' + idx + ',1)" style="width:22px;height:22px;border:1px solid var(--border);border-radius:4px;background:var(--surface3);color:var(--text);cursor:pointer;font-size:.9rem;">+</button>'
+      + '</div>'
+      + '<div style="font-family:monospace;font-size:.82rem;color:var(--red);min-width:60px;text-align:right;" id="rl_' + idx + '">₹' + (item.price*item.qty).toFixed(2) + '</div>'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('refundItems').innerHTML = itemsHtml;
+  calcRefundTotal();
+  document.getElementById('refundModal').style.display = 'flex';
+}
+
+function adjRefQty(idx, delta) {
+  var bill = state.sales.find(function(s){ return s.id === _refundBillId; });
+  if (!bill) return;
+  var input = document.getElementById('rq_' + idx);
+  var max = bill.items[idx].qty;
+  var val = Math.min(max, Math.max(0, (parseInt(input.value)||0) + delta));
+  input.value = val;
+  var cb = document.getElementById('ri_' + idx);
+  if (cb) cb.checked = val > 0;
+  calcRefundTotal();
+}
+
+function calcRefundTotal() {
+  var bill = state.sales.find(function(s){ return s.id === _refundBillId; });
+  if (!bill) return;
+  var refundSub = 0;
+  bill.items.forEach(function(item, idx) {
+    var cb = document.getElementById('ri_' + idx);
+    var qEl = document.getElementById('rq_' + idx);
+    var lEl = document.getElementById('rl_' + idx);
+    var qty = cb && cb.checked ? (parseInt(qEl ? qEl.value : 0)||0) : 0;
+    var amt = item.price * qty;
+    refundSub += amt;
+    if (lEl) lEl.textContent = '₹' + amt.toFixed(2);
+    if (qEl) qEl.value = qty;
+  });
+  var gstRate = bill.gstRate || 0;
+  var refundGst = refundSub * gstRate / 100;
+  var refundTotal = refundSub + refundGst;
+  document.getElementById('refundAmt').textContent = '₹' + refundSub.toFixed(2);
+  document.getElementById('refundGst').textContent = '₹' + refundGst.toFixed(2);
+  document.getElementById('refundTotal').textContent = '₹' + refundTotal.toFixed(2);
+}
+
+function processRefund() {
+  var bill = state.sales.find(function(s){ return s.id === _refundBillId; });
+  if (!bill) return;
+  var reason = document.getElementById('refundReason').value;
+  var returnedItems = [];
+  var refundSub = 0;
+
+  bill.items.forEach(function(item, idx) {
+    var cb = document.getElementById('ri_' + idx);
+    var qEl = document.getElementById('rq_' + idx);
+    var qty = cb && cb.checked ? (parseInt(qEl ? qEl.value : 0)||0) : 0;
+    if (qty > 0) {
+      returnedItems.push(Object.assign({}, item, { qty: qty }));
+      refundSub += item.price * qty;
+      // Restore stock
+      var prod = state.products.find(function(p){ return p.id === item.id; });
+      if (prod && prod.stock != null) prod.stock += qty;
+    }
+  });
+
+  if (!returnedItems.length) { alert('Select at least one item to return.'); return; }
+  if (!confirm('Process refund of ₹' + (refundSub * (1 + (bill.gstRate||0)/100)).toFixed(2) + '?')) return;
+
+  var gstRate = bill.gstRate || 0;
+  var refundGst = refundSub * gstRate / 100;
+  var refundTotal = refundSub + refundGst;
+
+  // Create refund bill (negative)
+  var refundBill = {
+    id: state.billCounter,
+    prefix: bill.prefix || '',
+    date: new Date().toISOString(),
+    customer: bill.customer,
+    items: returnedItems,
+    subtotal: -refundSub,
+    discount: 0,
+    afterDiscount: -refundSub,
+    gst: -refundGst,
+    gstRate: gstRate,
+    total: -refundTotal,
+    payment: bill.payment,
+    type: 'refund',
+    refundOf: bill.id,
+    refundReason: reason
+  };
+
+  // Mark original bill as refunded
+  bill.refunded = true;
+  bill.refundId = state.billCounter;
+
+  state.sales.push(refundBill);
+  state.billCounter++;
+  save();
+  closeRefund();
+  renderHistory();
+  renderDashboard();
+
+  // Show refund receipt
+  showRefundReceipt(refundBill, bill);
+}
+
+function closeRefund() {
+  document.getElementById('refundModal').style.display = 'none';
+  _refundBillId = null;
+}
+
+async function showRefundReceipt(refundBill, origBill) {
+  var acc = state.account;
+  var shopName = acc.shopName || '';
+  var addr = acc.address || '';
+  var phone = acc.phone || '';
+  var gstin = acc.gstin || '';
+  var footer = acc.footer || 'Thank you for your purchase!';
+  var dt = new Date(refundBill.date);
+  var dateStr = dt.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})
+    + '  ' + dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+
+  var itemsHtml = refundBill.items.map(function(it) {
+    return '<div class="receipt-row"><span>' + it.icon + ' ' + it.name + ' x' + it.qty + '</span>'
+      + '<span>-&#8377;' + (it.price*it.qty).toFixed(2) + '</span></div>';
+  }).join('');
+
+  var content = '<div class="receipt-center">'
+    + (shopName ? '<div class="receipt-shop">' + shopName + '</div>' : '')
+    + (addr ? '<div style="font-size:11px;margin-top:2px;">' + addr + '</div>' : '')
+    + (phone ? '<div style="font-size:11px;">Ph: ' + phone + '</div>' : '')
+    + (gstin ? '<div style="font-size:10px;margin-top:2px;">GSTIN: <b>' + gstin + '</b></div>' : '')
+    + '</div>'
+    + '<div class="receipt-divider"></div>'
+    + '<div class="receipt-center" style="font-size:13px;font-weight:800;color:#ef4444;letter-spacing:1px;">↩ RETURN RECEIPT</div>'
+    + '<div class="receipt-divider"></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+    + '<div style="font-size:13px;font-weight:700;">Return #' + String(refundBill.id).padStart(3,'0') + '</div>'
+    + '<div style="font-size:10px;color:#555;">' + dateStr + '</div>'
+    + '</div>'
+    + '<div style="font-size:11px;margin-bottom:2px;">Original Bill: <b>#' + String(origBill.id).padStart(3,'0') + '</b></div>'
+    + '<div style="font-size:11px;margin-bottom:2px;">Customer: <b>' + refundBill.customer + '</b></div>'
+    + '<div style="font-size:11px;color:#ef4444;margin-bottom:2px;">Reason: ' + (refundBill.refundReason||'') + '</div>'
+    + '<div class="receipt-divider"></div>'
+    + '<div class="receipt-row" style="font-size:10px;color:#888;font-weight:700;margin-bottom:4px;"><span>RETURNED ITEM</span><span>AMOUNT</span></div>'
+    + itemsHtml
+    + '<div class="receipt-divider"></div>'
+    + '<div class="receipt-row"><span>Subtotal Refund</span><span>-&#8377;' + Math.abs(refundBill.subtotal).toFixed(2) + '</span></div>'
+    + (refundBill.gstRate > 0 ? '<div class="receipt-row"><span>GST Refund</span><span>-&#8377;' + Math.abs(refundBill.gst).toFixed(2) + '</span></div>' : '')
+    + '<div class="receipt-divider"></div>'
+    + '<div class="receipt-row" style="font-weight:700;font-size:1.05rem;color:#ef4444;"><span>TOTAL REFUND</span><span>-&#8377;' + Math.abs(refundBill.total).toFixed(2) + '</span></div>'
+    + '<div class="receipt-divider"></div>'
+    + '<div class="receipt-center" style="font-size:10px;">' + footer + '</div>';
+
+  document.getElementById('receiptContent').innerHTML = content;
+
+  // Add refund print button
+  var actions = document.querySelector('#receiptModal .receipt-actions');
+  actions.innerHTML = '<button class="btn btn-red" style="flex:1" onclick="printReceipt()">🖨 Print Return Receipt</button>'
+    + '<button class="btn btn-ghost" style="flex:1" onclick="closeReceipt()">Close</button>';
+
+  // Apply thermal width
+  var tw = parseInt(state.account.thermalWidth||'80');
+  var rw = tw === 58 ? 240 : 320;
+  var wrap = document.querySelector('#receiptModal .receipt-wrap');
+  if (wrap) wrap.style.width = rw + 'px';
+  document.getElementById('receiptModal').classList.add('open');
+}
+
+async function saveBillToServer(bill) {
+  await fetch("http://localhost:5000/api/bill", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(bill)
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+function init() {
+  // Date display
+  const d = new Date();
+  document.getElementById('dateDisplay').textContent =
+    d.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+
+  updateBillBadge();
+  renderDashboard();
+  buildPosCatPills();
+  renderProducts();
+  applyLang();
+
+  // Close modals on overlay click
+  document.getElementById('receiptModal').addEventListener('click', function(e) {
+    if (e.target === this) closeReceipt();
+  });
+  document.getElementById('addProductModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddProduct();
+  });
+}
+
+init();
+</script>
+</body>
+</html>

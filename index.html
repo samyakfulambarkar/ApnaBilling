@@ -63,14 +63,14 @@
   .badge { background: var(--accent); color: #000; border-radius: 20px; padding: 4px 12px; font-size: .8rem; font-weight: 700; font-family: 'DM Mono', monospace; }
   .page { display: none; padding: 24px 28px; animation: fadeIn .3s; flex: 1; }
   .page.active { display: block; }
-  #page-pos.active { display: flex; flex-direction: column; padding: 16px 20px; overflow: hidden; height: calc(100vh - 64px); }
+  #page-pos.active { display: flex; flex-direction: column; padding: 16px 20px; overflow: auto; height: calc(100vh - 64px); }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
   /* CARDS */
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .stat-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 20px; position: relative; overflow: hidden;
+    padding: 20px; position: relative; overflow: auto;
   }
   .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
   .stat-card.yellow::before { background: var(--accent); }
@@ -94,9 +94,31 @@
   canvas#donutChart { max-width: 130px; }
 
   /* POS */
-  .pos-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; flex: 1; overflow: hidden; min-height: 0; }
-  .pos-left { display: flex; flex-direction: column; gap: 14px; overflow: hidden; min-height: 0; height: 100%; }
-  .pos-right { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden; }
+  .pos-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  flex: 1;
+  min-height: 100vh;   /* changed */
+}
+
+.pos-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;   /* ✅ allow scroll */
+}
+
+.pos-right {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;   /* ✅ allow scroll */
+}
   .product-grid-wrap { flex: 1; overflow-y: auto; min-height: 0; height: 0; }
   .search-bar { display: flex; gap: 10px; }
   .input { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: .9rem; outline: none; transition: border-color .2s; }
@@ -178,7 +200,7 @@
     align-items: center; justify-content: center;
   }
   #receiptModal.open { display: flex; }
-  .receipt-wrap { background: #fff; width: 340px; border-radius: 8px; overflow: hidden; max-height: 90vh; display: flex; flex-direction: column; }
+  .receipt-wrap { background: #fff; width: 340px; border-radius: 8px; overflow: auto; max-height: 90vh; display: flex; flex-direction: column; }
   .receipt-paper { overflow-y: auto; flex: 1;
     background: #fff; color: #111; font-family: 'DM Mono', monospace;
     font-size: 12px; line-height: 1.6; padding: 20px 16px;
@@ -224,7 +246,7 @@
     .sidebar-logo span, .nav-item span, .nav-section, .sidebar-footer { display: none; }
     .nav-item { justify-content: center; padding: 12px; }
     .pos-grid { grid-template-columns: 1fr; height: auto; overflow: visible; }
-    .pos-left { height: 60vh; overflow: hidden; }
+    .pos-left { height: 60vh; overflow: auto; }
     .pos-right { height: 80vh; }
     .chart-section { grid-template-columns: 1fr; }
     #main { width: calc(100vw - 60px); }

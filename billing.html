@@ -2304,7 +2304,7 @@ async function showRefundReceipt(refundBill, origBill) {
 }
 
 async function saveBillToServer(bill) {
-  await fetch("http://localhost:5000/api/bill", {
+  await fetch("https://apnabilling.onrender.com/api/bill", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"

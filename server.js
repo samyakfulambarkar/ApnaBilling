@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 // 🔗 MongoDB connect
-mongoose.connect("mongodb+srv://admin:1234@apnabilling.aurhbiy.mongodb.net/ApnaBilling")
+mongoose.connect(process.env.MONGO_URL)
 .then(() => console.log("MongoDB Connected"))
 .catch(err => console.log(err));
 
@@ -16,7 +16,7 @@ mongoose.connect("mongodb+srv://admin:1234@apnabilling.aurhbiy.mongodb.net/ApnaB
 const BillSchema = new mongoose.Schema({
   items: Array,
   subtotal: Number,
-  gst: Number,
+  gst: Number, 
   total: Number,
   payment: String,
   date: Date
